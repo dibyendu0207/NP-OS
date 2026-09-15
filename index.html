@@ -1,0 +1,2605 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+
+    <meta
+        name="viewport"
+        content="width=device-width, initial-scale=1.0, viewport-fit=cover"
+    >
+
+    <meta
+        name="theme-color"
+        content="#07111f"
+    >
+
+    <meta
+        name="description"
+        content="NP-OS — NEET Progress OS. A private read-only guardian progress tracker for NEET preparation."
+    >
+
+    <title>NP-OS • NEET Progress OS</title>
+
+    <link rel="stylesheet" href="style.css">
+
+    <!-- Future PWA support -->
+    <link rel="manifest" href="manifest.json">
+</head>
+
+<body>
+
+<!-- =========================================================
+     APPLICATION ROOT
+========================================================= -->
+
+<div id="app">
+
+    <!-- =====================================================
+         GUARDIAN LOGIN SCREEN
+    ====================================================== -->
+
+    <section
+        id="loginScreen"
+        class="screen login-screen"
+        aria-label="Guardian Login"
+    >
+
+        <div class="login-container">
+
+            <div class="brand-block">
+
+                <div class="brand-icon">
+                    NP
+                </div>
+
+                <h1>
+                    NP-OS
+                </h1>
+
+                <p>
+                    NEET Progress OS
+                </p>
+
+                <span>
+                    Guardian View
+                </span>
+
+            </div>
+
+
+            <!-- First-time PIN setup -->
+
+            <div
+                id="pinSetupBox"
+                class="auth-card"
+            >
+
+                <h2>
+                    Set Guardian PIN
+                </h2>
+
+                <p class="muted">
+                    Create a private PIN for accessing the guardian dashboard.
+                </p>
+
+                <label for="setupPin">
+                    Create PIN
+                </label>
+
+                <input
+                    id="setupPin"
+                    type="password"
+                    inputmode="numeric"
+                    maxlength="6"
+                    autocomplete="new-password"
+                    placeholder="Enter 4–6 digit PIN"
+                >
+
+                <label for="confirmPin">
+                    Confirm PIN
+                </label>
+
+                <input
+                    id="confirmPin"
+                    type="password"
+                    inputmode="numeric"
+                    maxlength="6"
+                    autocomplete="new-password"
+                    placeholder="Re-enter PIN"
+                >
+
+                <button
+                    id="setPinButton"
+                    class="primary-button"
+                    type="button"
+                >
+                    Set PIN & Continue
+                </button>
+
+                <p
+                    id="pinSetupMessage"
+                    class="auth-message"
+                    aria-live="polite"
+                ></p>
+
+            </div>
+
+
+            <!-- Existing guardian login -->
+
+            <div
+                id="pinLoginBox"
+                class="auth-card"
+                hidden
+            >
+
+                <h2>
+                    Guardian Login
+                </h2>
+
+                <p class="muted">
+                    Enter your PIN to view NEET progress.
+                </p>
+
+                <label for="loginPin">
+                    Guardian PIN
+                </label>
+
+                <input
+                    id="loginPin"
+                    type="password"
+                    inputmode="numeric"
+                    maxlength="6"
+                    autocomplete="current-password"
+                    placeholder="Enter PIN"
+                >
+
+                <button
+                    id="loginButton"
+                    class="primary-button"
+                    type="button"
+                >
+                    Login
+                </button>
+
+                <p
+                    id="loginMessage"
+                    class="auth-message"
+                    aria-live="polite"
+                ></p>
+
+            </div>
+
+
+            <p class="privacy-note">
+                🔒 Read-only guardian access
+            </p>
+
+        </div>
+
+    </section>
+
+
+    <!-- =====================================================
+         MAIN APPLICATION
+    ====================================================== -->
+
+    <section
+        id="mainApp"
+        class="main-app"
+        hidden
+    >
+
+        <!-- =================================================
+             HEADER
+        ================================================== -->
+
+        <header class="top-header">
+
+            <div class="header-left">
+
+                <div
+                    id="menuButton"
+                    class="menu-button"
+                    role="button"
+                    tabindex="0"
+                    aria-label="Open menu"
+                >
+                    ☰
+                </div>
+
+                <div>
+
+                    <div class="app-title">
+                        NP-OS
+                    </div>
+
+                    <div class="app-subtitle">
+                        NEET Progress OS
+                    </div>
+
+                </div>
+
+            </div>
+
+
+            <div class="header-right">
+
+                <div
+                    id="connectionIndicator"
+                    class="connection-indicator"
+                    title="Sync status"
+                >
+                    ●
+                </div>
+
+                <div
+                    id="guardianAvatar"
+                    class="guardian-avatar"
+                >
+                    G
+                </div>
+
+            </div>
+
+        </header>
+
+
+        <!-- =================================================
+             SIDE MENU
+        ================================================== -->
+
+        <aside
+            id="sideMenu"
+            class="side-menu"
+            aria-label="Navigation"
+        >
+
+            <div class="side-menu-header">
+
+                <strong>
+                    NP-OS
+                </strong>
+
+                <button
+                    id="closeMenuButton"
+                    type="button"
+                >
+                    ×
+                </button>
+
+            </div>
+
+
+            <button
+                class="nav-menu-item active"
+                data-page="homePage"
+                type="button"
+            >
+                🏠
+                <span>Home</span>
+            </button>
+
+            <button
+                class="nav-menu-item"
+                data-page="dailyPage"
+                type="button"
+            >
+                📅
+                <span>Daily Report</span>
+            </button>
+
+            <button
+                class="nav-menu-item"
+                data-page="weeklyPage"
+                type="button"
+            >
+                📊
+                <span>Weekly Report</span>
+            </button>
+
+            <button
+                class="nav-menu-item"
+                data-page="monthlyPage"
+                type="button"
+            >
+                📈
+                <span>Monthly Report</span>
+            </button>
+
+            <button
+                class="nav-menu-item"
+                data-page="subjectsPage"
+                type="button"
+            >
+                📚
+                <span>Subjects</span>
+            </button>
+
+            <button
+                class="nav-menu-item"
+                data-page="chaptersPage"
+                type="button"
+            >
+                📖
+                <span>Chapters</span>
+            </button>
+
+            <button
+                class="nav-menu-item"
+                data-page="statsPage"
+                type="button"
+            >
+                🏆
+                <span>Stats & Personal Best</span>
+            </button>
+
+            <button
+                class="nav-menu-item"
+                data-page="syncPage"
+                type="button"
+            >
+                ☁️
+                <span>Sync Status</span>
+            </button>
+
+            <button
+                class="nav-menu-item"
+                data-page="morePage"
+                type="button"
+            >
+                ⚙️
+                <span>More</span>
+            </button>
+
+
+            <div class="side-menu-footer">
+
+                <button
+                    id="logoutButton"
+                    class="logout-button"
+                    type="button"
+                >
+                    🚪 Logout
+                </button>
+
+            </div>
+
+        </aside>
+
+
+        <!-- =================================================
+             PAGE CONTAINER
+        ================================================== -->
+
+        <main id="pageContainer">
+
+
+            <!-- =================================================
+                 HOME PAGE
+            ================================================== -->
+
+            <section
+                id="homePage"
+                class="page active-page"
+            >
+
+                <!-- Date / Week / Day -->
+
+                <div class="page-heading">
+
+                    <div>
+
+                        <span class="eyebrow">
+                            Guardian Dashboard
+                        </span>
+
+                        <h1>
+                            Today
+                        </h1>
+
+                        <p id="todayDate">
+                            Loading date...
+                        </p>
+
+                    </div>
+
+                    <div class="day-badge">
+
+                        <span id="weekLabel">
+                            Week 1
+                        </span>
+
+                        <strong id="dayLabel">
+                            Day 1
+                        </strong>
+
+                    </div>
+
+                </div>
+
+
+                <!-- =================================================
+                     LIVE STUDY STATUS
+                ================================================== -->
+
+                <div
+                    id="liveStatusCard"
+                    class="card live-status-card"
+                >
+
+                    <div class="card-header">
+
+                        <div>
+
+                            <span class="eyebrow">
+                                Live Status
+                            </span>
+
+                            <h2 id="liveStatusTitle">
+                                Not Studying
+                            </h2>
+
+                        </div>
+
+                        <div
+                            id="liveStatusDot"
+                            class="status-dot"
+                        ></div>
+
+                    </div>
+
+
+                    <div class="live-status-body">
+
+                        <div
+                            id="liveTaskName"
+                            class="live-task-name"
+                        >
+                            No active task
+                        </div>
+
+                        <div
+                            id="liveSubject"
+                            class="live-subject"
+                        >
+                            —
+                        </div>
+
+                        <div
+                            id="liveTimer"
+                            class="live-timer"
+                        >
+                            00:00:00
+                        </div>
+
+                        <div
+                            id="liveChapter"
+                            class="live-chapter"
+                        >
+                            —
+                        </div>
+
+                    </div>
+
+                </div>
+
+
+                <!-- =================================================
+                     TODAY'S PROGRESS
+                ================================================== -->
+
+                <div class="card progress-card">
+
+                    <div class="card-header">
+
+                        <div>
+
+                            <span class="eyebrow">
+                                Today's Progress
+                            </span>
+
+                            <h2>
+                                Overall Progress
+                            </h2>
+
+                        </div>
+
+                        <strong id="todayProgressPercent">
+                            0%
+                        </strong>
+
+                    </div>
+
+
+                    <div class="progress-overview">
+
+                        <div class="progress-ring">
+
+                            <div class="progress-ring-inner">
+
+                                <strong id="progressRingValue">
+                                    0%
+                                </strong>
+
+                                <span>
+                                    Complete
+                                </span>
+
+                            </div>
+
+                        </div>
+
+
+                        <div class="progress-metrics">
+
+                            <div class="metric-row">
+
+                                <span>
+                                    Actual Study Time
+                                </span>
+
+                                <strong id="homeStudyTime">
+                                    0h 00m
+                                </strong>
+
+                            </div>
+
+                            <div class="metric-row">
+
+                                <span>
+                                    Tasks
+                                </span>
+
+                                <strong id="homeTaskCount">
+                                    0 / 8
+                                </strong>
+
+                            </div>
+
+                            <div class="metric-row">
+
+                                <span>
+                                    Questions
+                                </span>
+
+                                <strong id="homeQuestionCount">
+                                    0
+                                </strong>
+
+                            </div>
+
+                            <div class="metric-row">
+
+                                <span>
+                                    Streak
+                                </span>
+
+                                <strong id="homeStreak">
+                                    0 days
+                                </strong>
+
+                            </div>
+
+                        </div>
+
+                    </div>
+
+                </div>
+
+
+                <!-- =================================================
+                     TODAY'S SUMMARY
+                ================================================== -->
+
+                <div class="section-heading">
+
+                    <h2>
+                        Today's Summary
+                    </h2>
+
+                </div>
+
+
+                <div class="summary-grid">
+
+                    <div class="summary-card">
+
+                        <span class="summary-icon">
+                            ⏱️
+                        </span>
+
+                        <span class="summary-label">
+                            Study Time
+                        </span>
+
+                        <strong id="summaryStudyTime">
+                            0h 00m
+                        </strong>
+
+                    </div>
+
+
+                    <div class="summary-card">
+
+                        <span class="summary-icon">
+                            ✅
+                        </span>
+
+                        <span class="summary-label">
+                            Tasks
+                        </span>
+
+                        <strong id="summaryTasks">
+                            0 / 8
+                        </strong>
+
+                    </div>
+
+
+                    <div class="summary-card">
+
+                        <span class="summary-icon">
+                            ❓
+                        </span>
+
+                        <span class="summary-label">
+                            Questions
+                        </span>
+
+                        <strong id="summaryQuestions">
+                            0
+                        </strong>
+
+                    </div>
+
+
+                    <div class="summary-card">
+
+                        <span class="summary-icon">
+                            🔥
+                        </span>
+
+                        <span class="summary-label">
+                            Streak
+                        </span>
+
+                        <strong id="summaryStreak">
+                            0 days
+                        </strong>
+
+                    </div>
+
+                </div>
+
+
+                <!-- =================================================
+                     SUBJECT QUICK TRACKING
+                ================================================== -->
+
+                <div class="section-heading">
+
+                    <h2>
+                        Subject Tracking
+                    </h2>
+
+                    <button
+                        class="text-button"
+                        data-page="subjectsPage"
+                        type="button"
+                    >
+                        View All
+                    </button>
+
+                </div>
+
+
+                <div class="subject-grid">
+
+                    <div class="subject-card physics-card">
+
+                        <div class="subject-top">
+
+                            <span class="subject-icon">
+                                ⚛️
+                            </span>
+
+                            <strong>
+                                Physics
+                            </strong>
+
+                        </div>
+
+                        <div class="subject-stat">
+
+                            <strong id="homePhysicsTime">
+                                0h 00m
+                            </strong>
+
+                            <span>
+                                Study Time
+                            </span>
+
+                        </div>
+
+                        <div class="mini-progress">
+
+                            <div
+                                id="homePhysicsProgress"
+                                class="mini-progress-fill"
+                            ></div>
+
+                        </div>
+
+                        <div class="subject-footer">
+
+                            <span>
+                                Questions
+                            </span>
+
+                            <strong id="homePhysicsQuestions">
+                                0
+                            </strong>
+
+                        </div>
+
+                    </div>
+
+
+                    <div class="subject-card chemistry-card">
+
+                        <div class="subject-top">
+
+                            <span class="subject-icon">
+                                🧪
+                            </span>
+
+                            <strong>
+                                Chemistry
+                            </strong>
+
+                        </div>
+
+                        <div class="subject-stat">
+
+                            <strong id="homeChemistryTime">
+                                0h 00m
+                            </strong>
+
+                            <span>
+                                Study Time
+                            </span>
+
+                        </div>
+
+                        <div class="mini-progress">
+
+                            <div
+                                id="homeChemistryProgress"
+                                class="mini-progress-fill"
+                            ></div>
+
+                        </div>
+
+                        <div class="subject-footer">
+
+                            <span>
+                                Questions
+                            </span>
+
+                            <strong id="homeChemistryQuestions">
+                                0
+                            </strong>
+
+                        </div>
+
+                    </div>
+
+
+                    <div class="subject-card biology-card">
+
+                        <div class="subject-top">
+
+                            <span class="subject-icon">
+                                🧬
+                            </span>
+
+                            <strong>
+                                Biology
+                            </strong>
+
+                        </div>
+
+                        <div class="subject-stat">
+
+                            <strong id="homeBiologyTime">
+                                0h 00m
+                            </strong>
+
+                            <span>
+                                Study Time
+                            </span>
+
+                        </div>
+
+                        <div class="mini-progress">
+
+                            <div
+                                id="homeBiologyProgress"
+                                class="mini-progress-fill"
+                            ></div>
+
+                        </div>
+
+                        <div class="subject-footer">
+
+                            <span>
+                                Questions
+                            </span>
+
+                            <strong id="homeBiologyQuestions">
+                                0
+                            </strong>
+
+                        </div>
+
+                    </div>
+
+                </div>
+
+
+                <!-- =================================================
+                     MISSED TASK ALERT
+                ================================================== -->
+
+                <div
+                    id="missedTaskCard"
+                    class="card alert-card"
+                    hidden
+                >
+
+                    <div class="alert-icon">
+                        ⚠️
+                    </div>
+
+                    <div>
+
+                        <span class="eyebrow">
+                            Attention
+                        </span>
+
+                        <h3>
+                            Missed Tasks
+                        </h3>
+
+                        <p id="missedTaskText">
+                            No missed tasks.
+                        </p>
+
+                    </div>
+
+                </div>
+
+
+                <!-- =================================================
+                     DAILY REPAIR
+                ================================================== -->
+
+                <div class="card repair-card">
+
+                    <div class="card-header">
+
+                        <div>
+
+                            <span class="eyebrow">
+                                Recovery
+                            </span>
+
+                            <h2>
+                                Daily Repair
+                            </h2>
+
+                        </div>
+
+                        <span
+                            id="repairStatusBadge"
+                            class="status-badge"
+                        >
+                            Pending
+                        </span>
+
+                    </div>
+
+                    <p>
+                        Missed or incomplete work recovered during the Daily
+                        Repair window.
+                    </p>
+
+                    <div class="repair-stats">
+
+                        <div>
+
+                            <span>
+                                Repair Time
+                            </span>
+
+                            <strong id="repairTime">
+                                0m
+                            </strong>
+
+                        </div>
+
+                        <div>
+
+                            <span>
+                                Repaired Tasks
+                            </span>
+
+                            <strong id="repairedTasks">
+                                0
+                            </strong>
+
+                        </div>
+
+                    </div>
+
+                </div>
+
+            </section>
+
+
+            <!-- =================================================
+                 DAILY REPORT PAGE
+            ================================================== -->
+
+            <section
+                id="dailyPage"
+                class="page"
+                hidden
+            >
+
+                <div class="page-heading">
+
+                    <div>
+
+                        <span class="eyebrow">
+                            Daily Report
+                        </span>
+
+                        <h1>
+                            Today's Report
+                        </h1>
+
+                        <p id="dailyReportDate">
+                            —
+                        </p>
+
+                    </div>
+
+                </div>
+
+
+                <div class="card report-summary-card">
+
+                    <div class="report-main-value">
+
+                        <span>
+                            Actual Study Time
+                        </span>
+
+                        <strong id="dailyStudyTime">
+                            0h 00m
+                        </strong>
+
+                    </div>
+
+                    <div class="report-summary-grid">
+
+                        <div>
+                            <span>Tasks</span>
+                            <strong id="dailyTasks">0 / 8</strong>
+                        </div>
+
+                        <div>
+                            <span>Questions</span>
+                            <strong id="dailyQuestions">0</strong>
+                        </div>
+
+                        <div>
+                            <span>Progress</span>
+                            <strong id="dailyProgress">0%</strong>
+                        </div>
+
+                        <div>
+                            <span>Streak</span>
+                            <strong id="dailyStreak">0</strong>
+                        </div>
+
+                    </div>
+
+                </div>
+
+
+                <div class="section-heading">
+
+                    <h2>
+                        Task-by-Task Report
+                    </h2>
+
+                </div>
+
+                <div
+                    id="dailyTaskReport"
+                    class="task-report-list"
+                >
+                    <!-- Generated by app.js -->
+                </div>
+
+
+                <div class="section-heading">
+
+                    <h2>
+                        Subject Report
+                    </h2>
+
+                </div>
+
+                <div
+                    id="dailySubjectReport"
+                    class="subject-report-list"
+                >
+                    <!-- Generated by app.js -->
+                </div>
+
+            </section>
+
+
+            <!-- =================================================
+                 WEEKLY REPORT PAGE
+            ================================================== -->
+
+            <section
+                id="weeklyPage"
+                class="page"
+                hidden
+            >
+
+                <div class="page-heading">
+
+                    <div>
+
+                        <span class="eyebrow">
+                            Weekly Report
+                        </span>
+
+                        <h1>
+                            This Week
+                        </h1>
+
+                        <p id="weeklyDateRange">
+                            —
+                        </p>
+
+                    </div>
+
+                    <div class="day-badge">
+
+                        <span>
+                            Current
+                        </span>
+
+                        <strong id="weeklyCurrentDay">
+                            Day 1
+                        </strong>
+
+                    </div>
+
+                </div>
+
+
+                <div class="summary-grid">
+
+                    <div class="summary-card">
+                        <span class="summary-icon">⏱️</span>
+                        <span class="summary-label">Study Time</span>
+                        <strong id="weeklyStudyTime">0h 00m</strong>
+                    </div>
+
+                    <div class="summary-card">
+                        <span class="summary-icon">✅</span>
+                        <span class="summary-label">Tasks</span>
+                        <strong id="weeklyTasks">0</strong>
+                    </div>
+
+                    <div class="summary-card">
+                        <span class="summary-icon">❓</span>
+                        <span class="summary-label">Questions</span>
+                        <strong id="weeklyQuestions">0</strong>
+                    </div>
+
+                    <div class="summary-card">
+                        <span class="summary-icon">🔥</span>
+                        <span class="summary-label">Streak</span>
+                        <strong id="weeklyStreak">0 days</strong>
+                    </div>
+
+                </div>
+
+
+                <div class="card">
+
+                    <div class="card-header">
+
+                        <h2>
+                            Weekly Progress
+                        </h2>
+
+                        <span id="weeklyPercent">
+                            0%
+                        </span>
+
+                    </div>
+
+                    <div class="large-progress">
+
+                        <div
+                            id="weeklyProgressBar"
+                            class="large-progress-fill"
+                        ></div>
+
+                    </div>
+
+                </div>
+
+
+                <div class="card">
+
+                    <div class="card-header">
+
+                        <h2>
+                            Daily Breakdown
+                        </h2>
+
+                    </div>
+
+                    <div
+                        id="weeklyDailyBreakdown"
+                        class="daily-breakdown"
+                    >
+                        <!-- Generated by app.js -->
+                    </div>
+
+                </div>
+
+
+                <div class="card">
+
+                    <div class="card-header">
+
+                        <h2>
+                            Weekly Subject Analysis
+                        </h2>
+
+                    </div>
+
+                    <div
+                        id="weeklySubjectAnalysis"
+                        class="subject-report-list"
+                    >
+                        <!-- Generated by app.js -->
+                    </div>
+
+                </div>
+
+            </section>
+
+
+            <!-- =================================================
+                 MONTHLY REPORT PAGE
+            ================================================== -->
+
+            <section
+                id="monthlyPage"
+                class="page"
+                hidden
+            >
+
+                <div class="page-heading">
+
+                    <div>
+
+                        <span class="eyebrow">
+                            Monthly Report
+                        </span>
+
+                        <h1>
+                            30-Day Report
+                        </h1>
+
+                        <p id="monthlyDateRange">
+                            —
+                        </p>
+
+                    </div>
+
+                </div>
+
+
+                <div class="summary-grid">
+
+                    <div class="summary-card">
+
+                        <span class="summary-icon">
+                            ⏱️
+                        </span>
+
+                        <span class="summary-label">
+                            Study Time
+                        </span>
+
+                        <strong id="monthlyStudyTime">
+                            0h 00m
+                        </strong>
+
+                    </div>
+
+
+                    <div class="summary-card">
+
+                        <span class="summary-icon">
+                            📅
+                        </span>
+
+                        <span class="summary-label">
+                            Active Days
+                        </span>
+
+                        <strong id="monthlyActiveDays">
+                            0
+                        </strong>
+
+                    </div>
+
+
+                    <div class="summary-card">
+
+                        <span class="summary-icon">
+                            ❓
+                        </span>
+
+                        <span class="summary-label">
+                            Questions
+                        </span>
+
+                        <strong id="monthlyQuestions">
+                            0
+                        </strong>
+
+                    </div>
+
+
+                    <div class="summary-card">
+
+                        <span class="summary-icon">
+                            🔥
+                        </span>
+
+                        <span class="summary-label">
+                            Best Streak
+                        </span>
+
+                        <strong id="monthlyBestStreak">
+                            0 days
+                        </strong>
+
+                    </div>
+
+                </div>
+
+
+                <div class="card chart-card">
+
+                    <div class="card-header">
+
+                        <div>
+
+                            <span class="eyebrow">
+                                Progress Graph
+                            </span>
+
+                            <h2>
+                                30-Day Study Trend
+                            </h2>
+
+                        </div>
+
+                    </div>
+
+                    <div class="chart-container">
+
+                        <canvas
+                            id="monthlyStudyChart"
+                            aria-label="30-day study time graph"
+                        ></canvas>
+
+                    </div>
+
+                </div>
+
+
+                <div class="card chart-card">
+
+                    <div class="card-header">
+
+                        <h2>
+                            Question Trend
+                        </h2>
+
+                    </div>
+
+                    <div class="chart-container">
+
+                        <canvas
+                            id="monthlyQuestionChart"
+                            aria-label="30-day question graph"
+                        ></canvas>
+
+                    </div>
+
+                </div>
+
+            </section>
+
+
+            <!-- =================================================
+                 SUBJECTS PAGE
+            ================================================== -->
+
+            <section
+                id="subjectsPage"
+                class="page"
+                hidden
+            >
+
+                <div class="page-heading">
+
+                    <div>
+
+                        <span class="eyebrow">
+                            Subject Tracking
+                        </span>
+
+                        <h1>
+                            Subjects
+                        </h1>
+
+                        <p>
+                            Study time and question performance by subject.
+                        </p>
+
+                    </div>
+
+                </div>
+
+
+                <div
+                    id="subjectDetailContainer"
+                    class="subject-detail-container"
+                >
+
+                    <!-- PHYSICS -->
+
+                    <div
+                        class="card subject-detail-card"
+                        data-subject="Physics"
+                    >
+
+                        <div class="subject-detail-header">
+
+                            <div>
+
+                                <span class="subject-icon">
+                                    ⚛️
+                                </span>
+
+                                <h2>
+                                    Physics
+                                </h2>
+
+                            </div>
+
+                            <strong id="physicsPercent">
+                                0%
+                            </strong>
+
+                        </div>
+
+
+                        <div class="large-progress">
+
+                            <div
+                                id="physicsProgressBar"
+                                class="large-progress-fill"
+                            ></div>
+
+                        </div>
+
+
+                        <div class="detail-stat-grid">
+
+                            <div>
+                                <span>Study Time</span>
+                                <strong id="physicsStudyTime">0h 00m</strong>
+                            </div>
+
+                            <div>
+                                <span>Questions</span>
+                                <strong id="physicsQuestions">0</strong>
+                            </div>
+
+                            <div>
+                                <span>Completed Tasks</span>
+                                <strong id="physicsTasks">0</strong>
+                            </div>
+
+                            <div>
+                                <span>Chapters</span>
+                                <strong id="physicsChapters">0</strong>
+                            </div>
+
+                        </div>
+
+                    </div>
+
+
+                    <!-- CHEMISTRY -->
+
+                    <div
+                        class="card subject-detail-card"
+                        data-subject="Chemistry"
+                    >
+
+                        <div class="subject-detail-header">
+
+                            <div>
+
+                                <span class="subject-icon">
+                                    🧪
+                                </span>
+
+                                <h2>
+                                    Chemistry
+                                </h2>
+
+                            </div>
+
+                            <strong id="chemistryPercent">
+                                0%
+                            </strong>
+
+                        </div>
+
+
+                        <div class="large-progress">
+
+                            <div
+                                id="chemistryProgressBar"
+                                class="large-progress-fill"
+                            ></div>
+
+                        </div>
+
+
+                        <div class="detail-stat-grid">
+
+                            <div>
+                                <span>Study Time</span>
+                                <strong id="chemistryStudyTime">0h 00m</strong>
+                            </div>
+
+                            <div>
+                                <span>Questions</span>
+                                <strong id="chemistryQuestions">0</strong>
+                            </div>
+
+                            <div>
+                                <span>Completed Tasks</span>
+                                <strong id="chemistryTasks">0</strong>
+                            </div>
+
+                            <div>
+                                <span>Chapters</span>
+                                <strong id="chemistryChapters">0</strong>
+                            </div>
+
+                        </div>
+
+                    </div>
+
+
+                    <!-- BIOLOGY -->
+
+                    <div
+                        class="card subject-detail-card"
+                        data-subject="Biology"
+                    >
+
+                        <div class="subject-detail-header">
+
+                            <div>
+
+                                <span class="subject-icon">
+                                    🧬
+                                </span>
+
+                                <h2>
+                                    Biology
+                                </h2>
+
+                            </div>
+
+                            <strong id="biologyPercent">
+                                0%
+                            </strong>
+
+                        </div>
+
+
+                        <div class="large-progress">
+
+                            <div
+                                id="biologyProgressBar"
+                                class="large-progress-fill"
+                            ></div>
+
+                        </div>
+
+
+                        <div class="detail-stat-grid">
+
+                            <div>
+                                <span>Study Time</span>
+                                <strong id="biologyStudyTime">0h 00m</strong>
+                            </div>
+
+                            <div>
+                                <span>Questions</span>
+                                <strong id="biologyQuestions">0</strong>
+                            </div>
+
+                            <div>
+                                <span>Completed Tasks</span>
+                                <strong id="biologyTasks">0</strong>
+                            </div>
+
+                            <div>
+                                <span>Chapters</span>
+                                <strong id="biologyChapters">0</strong>
+                            </div>
+
+                        </div>
+
+                    </div>
+
+                </div>
+
+            </section>
+
+
+            <!-- =================================================
+                 CHAPTERS PAGE
+            ================================================== -->
+
+            <section
+                id="chaptersPage"
+                class="page"
+                hidden
+            >
+
+                <div class="page-heading">
+
+                    <div>
+
+                        <span class="eyebrow">
+                            Chapter Tracking
+                        </span>
+
+                        <h1>
+                            Chapters
+                        </h1>
+
+                        <p>
+                            Track completed NEET chapters.
+                        </p>
+
+                    </div>
+
+                </div>
+
+
+                <div class="chapter-filter-bar">
+
+                    <button
+                        class="chapter-filter active"
+                        data-chapter-subject="All"
+                        type="button"
+                    >
+                        All
+                    </button>
+
+                    <button
+                        class="chapter-filter"
+                        data-chapter-subject="Physics"
+                        type="button"
+                    >
+                        Physics
+                    </button>
+
+                    <button
+                        class="chapter-filter"
+                        data-chapter-subject="Chemistry"
+                        type="button"
+                    >
+                        Chemistry
+                    </button>
+
+                    <button
+                        class="chapter-filter"
+                        data-chapter-subject="Biology"
+                        type="button"
+                    >
+                        Biology
+                    </button>
+
+                </div>
+
+
+                <div class="card chapter-overview">
+
+                    <div class="detail-stat-grid">
+
+                        <div>
+                            <span>Total Chapters</span>
+                            <strong id="totalChapterCount">0</strong>
+                        </div>
+
+                        <div>
+                            <span>Completed</span>
+                            <strong id="completedChapterCount">0</strong>
+                        </div>
+
+                        <div>
+                            <span>Remaining</span>
+                            <strong id="remainingChapterCount">0</strong>
+                        </div>
+
+                        <div>
+                            <span>Completion</span>
+                            <strong id="chapterCompletionPercent">0%</strong>
+                        </div>
+
+                    </div>
+
+                </div>
+
+
+                <div
+                    id="chapterList"
+                    class="chapter-list"
+                >
+                    <!-- Generated by app.js -->
+                </div>
+
+            </section>
+
+
+            <!-- =================================================
+                 STATS / PERSONAL BEST PAGE
+            ================================================== -->
+
+            <section
+                id="statsPage"
+                class="page"
+                hidden
+            >
+
+                <div class="page-heading">
+
+                    <div>
+
+                        <span class="eyebrow">
+                            Statistics
+                        </span>
+
+                        <h1>
+                            Stats & Personal Best
+                        </h1>
+
+                        <p>
+                            Long-term performance overview.
+                        </p>
+
+                    </div>
+
+                </div>
+
+
+                <div class="card">
+
+                    <div class="card-header">
+
+                        <div>
+
+                            <span class="eyebrow">
+                                Current Streak
+                            </span>
+
+                            <h2 id="statsCurrentStreak">
+                                0 days
+                            </h2>
+
+                        </div>
+
+                        <span class="streak-icon">
+                            🔥
+                        </span>
+
+                    </div>
+
+                    <div class="detail-stat-grid">
+
+                        <div>
+                            <span>Longest Streak</span>
+                            <strong id="statsLongestStreak">0 days</strong>
+                        </div>
+
+                        <div>
+                            <span>Total Study Time</span>
+                            <strong id="statsTotalStudyTime">0h 00m</strong>
+                        </div>
+
+                        <div>
+                            <span>Total Questions</span>
+                            <strong id="statsTotalQuestions">0</strong>
+                        </div>
+
+                        <div>
+                            <span>Active Days</span>
+                            <strong id="statsActiveDays">0</strong>
+                        </div>
+
+                    </div>
+
+                </div>
+
+
+                <div class="section-heading">
+
+                    <h2>
+                        Personal Best
+                    </h2>
+
+                </div>
+
+
+                <div class="personal-best-grid">
+
+                    <div class="best-card">
+
+                        <span>
+                            🕒
+                        </span>
+
+                        <small>
+                            Best Study Time
+                        </small>
+
+                        <strong id="bestStudyTime">
+                            0h 00m
+                        </strong>
+
+                        <em id="bestStudyDate">
+                            —
+                        </em>
+
+                    </div>
+
+
+                    <div class="best-card">
+
+                        <span>
+                            ❓
+                        </span>
+
+                        <small>
+                            Most Questions
+                        </small>
+
+                        <strong id="bestQuestions">
+                            0
+                        </strong>
+
+                        <em id="bestQuestionsDate">
+                            —
+                        </em>
+
+                    </div>
+
+
+                    <div class="best-card">
+
+                        <span>
+                            ✅
+                        </span>
+
+                        <small>
+                            Most Tasks
+                        </small>
+
+                        <strong id="bestTasks">
+                            0 / 8
+                        </strong>
+
+                        <em id="bestTasksDate">
+                            —
+                        </em>
+
+                    </div>
+
+
+                    <div class="best-card">
+
+                        <span>
+                            🔥
+                        </span>
+
+                        <small>
+                            Best Streak
+                        </small>
+
+                        <strong id="bestStreak">
+                            0 days
+                        </strong>
+
+                        <em id="bestStreakDate">
+                            —
+                        </em>
+
+                    </div>
+
+                </div>
+
+
+                <div class="card chart-card">
+
+                    <div class="card-header">
+
+                        <h2>
+                            Performance Graph
+                        </h2>
+
+                    </div>
+
+                    <div class="chart-container">
+
+                        <canvas
+                            id="performanceChart"
+                            aria-label="Performance graph"
+                        ></canvas>
+
+                    </div>
+
+                </div>
+
+            </section>
+
+
+            <!-- =================================================
+                 SYNC PAGE
+            ================================================== -->
+
+            <section
+                id="syncPage"
+                class="page"
+                hidden
+            >
+
+                <div class="page-heading">
+
+                    <div>
+
+                        <span class="eyebrow">
+                            Automatic Sync
+                        </span>
+
+                        <h1>
+                            Sync Status
+                        </h1>
+
+                        <p>
+                            Read-only progress synchronization from NEET OS.
+                        </p>
+
+                    </div>
+
+                </div>
+
+
+                <div
+                    id="syncStatusCard"
+                    class="card sync-card"
+                >
+
+                    <div class="sync-status-main">
+
+                        <div
+                            id="syncIcon"
+                            class="sync-icon"
+                        >
+                            ☁️
+                        </div>
+
+                        <div>
+
+                            <span class="eyebrow">
+                                Connection
+                            </span>
+
+                            <h2 id="syncStatusTitle">
+                                Waiting for Sync
+                            </h2>
+
+                            <p id="syncStatusMessage">
+                                No synchronization has occurred yet.
+                            </p>
+
+                        </div>
+
+                    </div>
+
+
+                    <div class="sync-detail-list">
+
+                        <div class="sync-detail">
+
+                            <span>
+                                Last Synced
+                            </span>
+
+                            <strong id="lastSynced">
+                                Never
+                            </strong>
+
+                        </div>
+
+
+                        <div class="sync-detail">
+
+                            <span>
+                                Sync Source
+                            </span>
+
+                            <strong id="syncSource">
+                                NEET OS
+                            </strong>
+
+                        </div>
+
+
+                        <div class="sync-detail">
+
+                            <span>
+                                Data Status
+                            </span>
+
+                            <strong id="syncDataStatus">
+                                Waiting
+                            </strong>
+
+                        </div>
+
+                    </div>
+
+                </div>
+
+
+                <div class="card">
+
+                    <div class="card-header">
+
+                        <h2>
+                            Synced Information
+                        </h2>
+
+                    </div>
+
+                    <div class="sync-data-grid">
+
+                        <div>
+                            <span>Study Time</span>
+                            <strong id="syncStudyTime">—</strong>
+                        </div>
+
+                        <div>
+                            <span>Tasks</span>
+                            <strong id="syncTasks">—</strong>
+                        </div>
+
+                        <div>
+                            <span>Questions</span>
+                            <strong id="syncQuestions">—</strong>
+                        </div>
+
+                        <div>
+                            <span>Chapters</span>
+                            <strong id="syncChapters">—</strong>
+                        </div>
+
+                    </div>
+
+                </div>
+
+
+                <div class="read-only-notice">
+
+                    🔒
+                    <div>
+
+                        <strong>
+                            Read-only Guardian Access
+                        </strong>
+
+                        <p>
+                            Guardian mode can view progress but cannot change
+                            study records, timers, targets or completed tasks.
+                        </p>
+
+                    </div>
+
+                </div>
+
+            </section>
+
+
+            <!-- =================================================
+                 MORE PAGE
+            ================================================== -->
+
+            <section
+                id="morePage"
+                class="page"
+                hidden
+            >
+
+                <div class="page-heading">
+
+                    <div>
+
+                        <span class="eyebrow">
+                            Settings
+                        </span>
+
+                        <h1>
+                            More
+                        </h1>
+
+                        <p>
+                            Guardian access and application information.
+                        </p>
+
+                    </div>
+
+                </div>
+
+
+                <!-- Guardian Account -->
+
+                <div class="card settings-card">
+
+                    <div class="card-header">
+
+                        <div>
+
+                            <span class="eyebrow">
+                                Guardian
+                            </span>
+
+                            <h2>
+                                Guardian Account
+                            </h2>
+
+                        </div>
+
+                        <span>
+                            🔐
+                        </span>
+
+                    </div>
+
+
+                    <div class="settings-row">
+
+                        <div>
+
+                            <strong>
+                                PIN Protection
+                            </strong>
+
+                            <span>
+                                Guardian dashboard access
+                            </span>
+
+                        </div>
+
+                        <button
+                            id="changePinButton"
+                            class="secondary-button"
+                            type="button"
+                        >
+                            Change PIN
+                        </button>
+
+                    </div>
+
+
+                    <div class="settings-row">
+
+                        <div>
+
+                            <strong>
+                                Read-only Mode
+                            </strong>
+
+                            <span>
+                                Enabled
+                            </span>
+
+                        </div>
+
+                        <span class="status-badge success">
+                            ON
+                        </span>
+
+                    </div>
+
+                </div>
+
+
+                <!-- Sync Settings -->
+
+                <div class="card settings-card">
+
+                    <div class="card-header">
+
+                        <div>
+
+                            <span class="eyebrow">
+                                Cloud
+                            </span>
+
+                            <h2>
+                                Automatic Sync
+                            </h2>
+
+                        </div>
+
+                        <span>
+                            ☁️
+                        </span>
+
+                    </div>
+
+
+                    <div class="settings-row">
+
+                        <div>
+
+                            <strong>
+                                Sync Status
+                            </strong>
+
+                            <span id="settingsSyncStatus">
+                                Waiting
+                            </span>
+
+                        </div>
+
+                        <button
+                            id="refreshSyncButton"
+                            class="secondary-button"
+                            type="button"
+                        >
+                            Refresh
+                        </button>
+
+                    </div>
+
+                    <div class="settings-row">
+
+                        <div>
+
+                            <strong>
+                                Last Synced
+                            </strong>
+
+                            <span id="settingsLastSynced">
+                                Never
+                            </span>
+
+                        </div>
+
+                    </div>
+
+                </div>
+
+
+                <!-- App Information -->
+
+                <div class="card settings-card">
+
+                    <div class="card-header">
+
+                        <div>
+
+                            <span class="eyebrow">
+                                About
+                            </span>
+
+                            <h2>
+                                NP-OS
+                            </h2>
+
+                        </div>
+
+                        <span>
+                            ℹ️
+                        </span>
+
+                    </div>
+
+
+                    <div class="about-list">
+
+                        <div>
+                            <span>
+                                Full Name
+                            </span>
+
+                            <strong>
+                                NEET Progress OS
+                            </strong>
+                        </div>
+
+
+                        <div>
+                            <span>
+                                Purpose
+                            </span>
+
+                            <strong>
+                                Guardian Progress Tracking
+                            </strong>
+                        </div>
+
+
+                        <div>
+                            <span>
+                                Access
+                            </span>
+
+                            <strong>
+                                Read-only
+                            </strong>
+                        </div>
+
+
+                        <div>
+                            <span>
+                                Version
+                            </span>
+
+                            <strong id="appVersion">
+                                1.0.0
+                            </strong>
+                        </div>
+
+                    </div>
+
+                </div>
+
+
+                <!-- Creator -->
+
+                <div class="creator-card">
+
+                    <div class="creator-logo">
+                        NP
+                    </div>
+
+                    <strong>
+                        NP-OS
+                    </strong>
+
+                    <span>
+                        NEET Progress OS
+                    </span>
+
+                    <small>
+                        The app is created by Dibyendu
+                    </small>
+
+                </div>
+
+            </section>
+
+        </main>
+
+
+        <!-- =================================================
+             BOTTOM NAVIGATION
+        ================================================== -->
+
+        <nav
+            id="bottomNavigation"
+            class="bottom-navigation"
+            aria-label="Main navigation"
+        >
+
+            <button
+                class="bottom-nav-item active"
+                data-page="homePage"
+                type="button"
+            >
+
+                <span>
+                    🏠
+                </span>
+
+                <small>
+                    Home
+                </small>
+
+            </button>
+
+
+            <button
+                class="bottom-nav-item"
+                data-page="dailyPage"
+                type="button"
+            >
+
+                <span>
+                    📅
+                </span>
+
+                <small>
+                    Daily
+                </small>
+
+            </button>
+
+
+            <button
+                class="bottom-nav-item"
+                data-page="subjectsPage"
+                type="button"
+            >
+
+                <span>
+                    📚
+                </span>
+
+                <small>
+                    Subjects
+                </small>
+
+            </button>
+
+
+            <button
+                class="bottom-nav-item"
+                data-page="statsPage"
+                type="button"
+            >
+
+                <span>
+                    📊
+                </span>
+
+                <small>
+                    Stats
+                </small>
+
+            </button>
+
+
+            <button
+                class="bottom-nav-item"
+                data-page="morePage"
+                type="button"
+            >
+
+                <span>
+                    ☰
+                </span>
+
+                <small>
+                    More
+                </small>
+
+            </button>
+
+        </nav>
+
+
+        <!-- =================================================
+             PIN CHANGE MODAL
+        ================================================== -->
+
+        <div
+            id="changePinModal"
+            class="modal-overlay"
+            hidden
+        >
+
+            <div class="modal-card">
+
+                <div class="modal-header">
+
+                    <div>
+
+                        <span class="eyebrow">
+                            Security
+                        </span>
+
+                        <h2>
+                            Change PIN
+                        </h2>
+
+                    </div>
+
+                    <button
+                        id="closeChangePinModal"
+                        type="button"
+                    >
+                        ×
+                    </button>
+
+                </div>
+
+
+                <label for="currentPin">
+                    Current PIN
+                </label>
+
+                <input
+                    id="currentPin"
+                    type="password"
+                    inputmode="numeric"
+                    maxlength="6"
+                    placeholder="Current PIN"
+                >
+
+
+                <label for="newPin">
+                    New PIN
+                </label>
+
+                <input
+                    id="newPin"
+                    type="password"
+                    inputmode="numeric"
+                    maxlength="6"
+                    placeholder="New PIN"
+                >
+
+
+                <label for="newPinConfirm">
+                    Confirm New PIN
+                </label>
+
+                <input
+                    id="newPinConfirm"
+                    type="password"
+                    inputmode="numeric"
+                    maxlength="6"
+                    placeholder="Confirm new PIN"
+                >
+
+
+                <button
+                    id="saveNewPinButton"
+                    class="primary-button"
+                    type="button"
+                >
+                    Save New PIN
+                </button>
+
+
+                <p
+                    id="changePinMessage"
+                    class="auth-message"
+                    aria-live="polite"
+                ></p>
+
+            </div>
+
+        </div>
+
+
+        <!-- =================================================
+             GENERAL MODAL
+        ================================================== -->
+
+        <div
+            id="generalModal"
+            class="modal-overlay"
+            hidden
+        >
+
+            <div class="modal-card">
+
+                <div class="modal-header">
+
+                    <div>
+
+                        <span
+                            id="generalModalEyebrow"
+                            class="eyebrow"
+                        >
+                            NP-OS
+                        </span>
+
+                        <h2 id="generalModalTitle">
+                            Information
+                        </h2>
+
+                    </div>
+
+                    <button
+                        id="closeGeneralModal"
+                        type="button"
+                    >
+                        ×
+                    </button>
+
+                </div>
+
+
+                <div
+                    id="generalModalBody"
+                    class="modal-body"
+                >
+                    <!-- Dynamic content -->
+                </div>
+
+            </div>
+
+        </div>
+
+    </section>
+
+</div>
+
+
+<!-- =========================================================
+     TOAST / STATUS MESSAGE
+========================================================= -->
+
+<div
+    id="toast"
+    class="toast"
+    role="status"
+    aria-live="polite"
+>
+</div>
+
+
+<!-- =========================================================
+     APP SCRIPT
+========================================================= -->
+
+<script src="app.js"></script>
+
+</body>
+</html>
