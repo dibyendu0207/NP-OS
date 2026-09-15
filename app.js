@@ -4495,3 +4495,294 @@ if(
     );
 
 })();
+/* =========================================================
+   NP-OS DYNAMIC GUARDIAN ACCESS
+   ---------------------------------------------------------
+   Guardian UID → Firebase guardianAccess
+   → Student UID → users/studentUID/neetOS
+
+   Read-only.
+   NP-OS NEVER writes to Firebase.
+   Future guardians can be added from Firebase Database
+   without changing this code.
+========================================================= */
+
+(function NPOSDynamicGuardianAccess() {
+
+    const DB_URL =
+        "https://np-os-b0eed-default-rtdb.firebaseio.com";
+
+    let lastGuardianUID = null;
+    let lastStudentUID = null;
+    let pollTimer = null;
+
+    async function getToken(user) {
+        try {
+            return await user.getIdToken();
+        } catch (error) {
+            console.error(
+                "NP-OS Guardian: Could not get Firebase token.",
+                error
+            );
+            return null;
+        }
+    }
+
+    async function readFirebase(path, token) {
+
+        const url =
+            DB_URL +
+            "/" +
+            path +
+            ".json?auth=" +
+            encodeURIComponent(token);
+
+        const response = await fetch(url);
+
+        if (!response.ok) {
+            throw new Error(
+                "Firebase read failed: HTTP " +
+                response.status
+            );
+        }
+
+        return await response.json();
+    }
+
+    async function loadGuardianData(user) {
+
+        if (!user) {
+            return;
+        }
+
+        try {
+
+            const token = await getToken(user);
+
+            if (!token) {
+                return;
+            }
+
+            const guardianUID = user.uid;
+
+            /*
+               Step 1:
+               Find which student this guardian is allowed to see.
+            */
+
+            const accessMap =
+                await readFirebase(
+                    "guardianAccess/" + guardianUID,
+                    token
+                );
+
+            if (
+                !accessMap ||
+                typeof accessMap !== "object"
+            ) {
+
+                console.warn(
+                    "NP-OS Guardian: No student access assigned."
+                );
+
+                return;
+            }
+
+            const studentUID =
+                Object.keys(accessMap).find(
+                    uid => accessMap[uid] === true
+                );
+
+            if (!studentUID) {
+
+                console.warn(
+                    "NP-OS Guardian: No valid student UID found."
+                );
+
+                return;
+            }
+
+            /*
+               Step 2:
+               Read the student's NEET OS snapshot.
+            */
+
+            const snapshot =
+                await readFirebase(
+                    "users/" +
+                    studentUID +
+                    "/neetOS",
+                    token
+                );
+
+            if (!snapshot) {
+
+                console.warn(
+                    "NP-OS Guardian: NEET OS cloud data not found."
+                );
+
+                return;
+            }
+
+            /*
+               Step 3:
+               Apply student data to NP-OS.
+            */
+
+            if (
+                typeof normCurrent === "function"
+            ) {
+                S.current =
+                    normCurrent(snapshot.studyData);
+            }
+
+            if (
+                typeof normHistory === "function"
+            ) {
+                S.history =
+                    normHistory(snapshot.history);
+            }
+
+            if (
+                typeof normSyllabus === "function"
+            ) {
+                S.syllabus =
+                    normSyllabus(snapshot.syllabus);
+            }
+
+            S.settings =
+                snapshot.settings ?? null;
+
+            if (snapshot.syncedAt) {
+
+                const date =
+                    new Date(snapshot.syncedAt);
+
+                if (
+                    !Number.isNaN(
+                        date.getTime()
+                    )
+                ) {
+
+                    S.lastSynced = date;
+
+                    localStorage.setItem(
+                        "NPOS_LAST_SYNC",
+                        date.toISOString()
+                    );
+                }
+            }
+
+            S.source =
+                "Firebase Cloud • Read-only Guardian";
+
+            lastGuardianUID =
+                guardianUID;
+
+            lastStudentUID =
+                studentUID;
+
+            updateAll();
+            syncPage();
+
+            console.log(
+                "NP-OS Guardian: Student data loaded.",
+                {
+                    guardianUID:
+                        guardianUID,
+                    studentUID:
+                        studentUID,
+                    syncedAt:
+                        snapshot.syncedAt || null
+                }
+            );
+
+        } catch (error) {
+
+            console.error(
+                "NP-OS Guardian Access Error:",
+                error
+            );
+
+            if (typeof syncPage === "function") {
+                syncPage();
+            }
+        }
+    }
+
+    async function checkGuardian() {
+
+        try {
+
+            const firebaseUser =
+                window.NPOSFirebase?.user;
+
+            if (!firebaseUser) {
+                return;
+            }
+
+            await loadGuardianData(
+                firebaseUser
+            );
+
+        } catch (error) {
+
+            console.error(
+                "NP-OS Guardian polling error:",
+                error
+            );
+        }
+    }
+
+    /*
+       Firebase login state may change without
+       NP-OS core exposing its listener.
+
+       Therefore we check periodically.
+    */
+
+    pollTimer =
+        setInterval(
+            checkGuardian,
+            5000
+        );
+
+    /*
+       First check.
+    */
+
+    setTimeout(
+        checkGuardian,
+        1500
+    );
+
+    /*
+       Public read-only status.
+    */
+
+    window.NPOSGuardian = {
+
+        status: () => ({
+            guardianUID:
+                lastGuardianUID,
+
+            studentUID:
+                lastStudentUID,
+
+            connected:
+                !!window.NPOSFirebase?.user,
+
+            source:
+                S.source,
+
+            lastSynced:
+                S.lastSynced
+        })
+
+    };
+
+    console.log(
+        "NP-OS: Dynamic Guardian Access ready."
+    );
+
+})();
