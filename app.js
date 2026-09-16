@@ -4786,3 +4786,69 @@ if(
     );
 
 })();
+
+/* =========================================================
+   NP-OS — LIVE CIRCULAR PROGRESS RING FIX
+   Visual only. Does not modify Firebase, sync, storage,
+   task logic or progress calculation.
+   ========================================================= */
+
+(function NPOSCircularProgressFix() {
+
+    function updateCircularRing() {
+
+        try {
+
+            const ring =
+                document.querySelector(".progress-ring");
+
+            if (!ring) {
+                return;
+            }
+
+            const p =
+                Math.max(
+                    0,
+                    Math.min(
+                        100,
+                        Number(progress()) || 0
+                    )
+                );
+
+            ring.style.background =
+                `conic-gradient(
+                    from -90deg,
+                    #4da3ff 0%,
+                    #4da3ff ${p}%,
+                    rgba(255,255,255,0.10) ${p}%,
+                    rgba(255,255,255,0.10) 100%
+                )`;
+
+        } catch (error) {
+
+            console.warn(
+                "NP-OS: Circular progress visual update failed.",
+                error
+            );
+
+        }
+
+    }
+
+
+    /* Initial paint */
+    updateCircularRing();
+
+
+    /* Keep ring synchronized with the live dashboard */
+    setInterval(
+        updateCircularRing,
+        1000
+    );
+
+
+    console.log(
+        "NP-OS: Circular progress ring FIX loaded."
+    );
+
+})();
