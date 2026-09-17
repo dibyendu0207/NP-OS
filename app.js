@@ -4852,3 +4852,2653 @@ if(
     );
 
 })();
+/* =========================================================
+   NP-OS — LIVE STUDY DETAIL + TEST ANALYSIS FIX
+   Version 3.0.0
+   ---------------------------------------------------------
+   SAFE ADDON
+   • No MutationObserver
+   • No Firebase write
+   • No direct Firebase fetch
+   • Uses NP-OS loaded cloud data
+   • Self Study exact Activity / Subject / Chapter
+   • Daily Repair exact Activity / Subject / Chapter
+   • Live Test
+   • Test Analysis
+   ========================================================= */
+
+(function NPOS_FINAL_LIVE_TEST_FIX(){
+
+    "use strict";
+
+    const VERSION = "3.0.0";
+    const REFRESH = 2000;
+
+    let timer = null;
+
+
+    /* =====================================================
+       HELPERS
+       ===================================================== */
+
+    function $(id){
+        return document.getElementById(id);
+    }
+
+
+    function esc(value){
+
+        const div =
+            document.createElement("div");
+
+        div.textContent =
+            String(value ?? "");
+
+        return div.innerHTML;
+    }
+
+
+    function num(value){
+
+        const n = Number(value);
+
+        return Number.isFinite(n)
+            ? n
+            : 0;
+    }
+
+
+    function arr(value){
+
+        return Array.isArray(value)
+            ? value
+            : [];
+    }
+
+
+    function obj(value){
+
+        return (
+            value &&
+            typeof value === "object"
+        )
+            ? value
+            : {};
+    }
+
+
+    function duration(seconds){
+
+        seconds =
+            Math.max(
+                0,
+                Math.floor(num(seconds))
+            );
+
+        const h =
+            Math.floor(seconds / 3600);
+
+        const m =
+            Math.floor(
+                (seconds % 3600) / 60
+            );
+
+        const s =
+            seconds % 60;
+
+
+        return (
+            String(h).padStart(2,"0") +
+            ":" +
+            String(m).padStart(2,"0") +
+            ":" +
+            String(s).padStart(2,"0")
+        );
+    }
+
+
+    function dateText(value){
+
+        if(!value){
+            return "—";
+        }
+
+        const d =
+            new Date(
+                Number(value)
+            );
+
+        if(
+            Number.isNaN(
+                d.getTime()
+            )
+        ){
+            return "—";
+        }
+
+        return d.toLocaleString(
+            "en-IN"
+        );
+    }
+
+
+    /* =====================================================
+       CURRENT STUDENT DATA
+
+       NP-OS already loads the student's Firebase
+       snapshot into cur().
+
+       We use that directly.
+       ===================================================== */
+
+    function studentData(){
+
+        try{
+
+            if(
+                typeof cur ===
+                "function"
+            ){
+
+                return cur();
+            }
+
+        }catch(error){
+
+            console.warn(
+                "NP-OS: cur() error",
+                error
+            );
+        }
+
+        return null;
+    }
+
+
+    /* =====================================================
+       TEST RECORDS
+       ===================================================== */
+
+    function testRecords(){
+
+        const d =
+            studentData();
+
+        if(!d){
+            return [];
+        }
+
+
+        if(
+            Array.isArray(
+                d.testRecords
+            )
+        ){
+
+            return d.testRecords;
+        }
+
+
+        if(
+            d.tests &&
+            Array.isArray(
+                d.tests.testRecords
+            )
+        ){
+
+            return d.tests.testRecords;
+        }
+
+
+        return [];
+    }
+
+
+    /* =====================================================
+       ACTIVE TEST
+       ===================================================== */
+
+    function activeTest(){
+
+        const d =
+            studentData();
+
+        if(!d){
+            return null;
+        }
+
+
+        if(
+            d.activeTest &&
+            typeof d.activeTest ===
+                "object"
+        ){
+
+            return d.activeTest;
+        }
+
+
+        if(
+            d.tests &&
+            d.tests.activeTest
+        ){
+
+            return d.tests.activeTest;
+        }
+
+
+        return null;
+    }
+
+
+    /* =====================================================
+       LIVE STUDY
+       ===================================================== */
+
+    function liveStudy(){
+
+        const d =
+            studentData();
+
+        if(!d){
+            return null;
+        }
+
+
+        const index =
+            Number.isInteger(
+                d.activeTask
+            )
+                ? d.activeTask
+                : null;
+
+
+        if(
+            index === null
+        ){
+
+            return null;
+        }
+
+
+        let task = null;
+
+        try{
+
+            if(
+                typeof TASKS !==
+                    "undefined"
+            ){
+
+                task =
+                    TASKS[index];
+            }
+
+        }catch(_){}
+
+
+        const meta =
+            obj(
+                d.taskMeta?.[index]
+            );
+
+
+        /*
+           IMPORTANT:
+
+           Self Study / Daily Repair addon stores:
+
+           addonActivity
+           addonSubject
+           addonChapter
+
+           inside taskMeta.
+        */
+
+        const activity =
+            meta.addonActivity ||
+            "Study";
+
+
+        const subject =
+            meta.addonSubject ||
+            task?.subject ||
+            "—";
+
+
+        const chapter =
+            meta.addonChapter ||
+            meta.chapter ||
+            "Chapter not specified";
+
+
+        const taskName =
+            task?.name ||
+            "Study Session";
+
+
+        /*
+           Existing saved study time
+        */
+
+        let elapsed =
+            num(
+                d.studySeconds?.[index]
+            );
+
+
+        /*
+           Current running session time
+        */
+
+        if(
+            d.activeStartTime
+        ){
+
+            elapsed +=
+                Math.max(
+                    0,
+                    Math.floor(
+                        (
+                            Date.now() -
+                            num(
+                                d.activeStartTime
+                            )
+                        ) / 1000
+                    )
+                );
+        }
+
+
+        return {
+
+            index,
+
+            taskName,
+
+            activity,
+
+            subject,
+
+            chapter,
+
+            elapsed,
+
+            meta
+        };
+    }
+
+
+    /* =====================================================
+       UPDATE EXISTING LIVE CARD
+       ===================================================== */
+
+    function updateMainLive(){
+
+        const d =
+            studentData();
+
+        if(!d){
+            return;
+        }
+
+
+        /* ================================================
+           1. LIVE TEST
+           ================================================ */
+
+        const test =
+            activeTest();
+
+
+        if(test){
+
+            if(
+                $("liveStatusTitle")
+            ){
+
+                $("liveStatusTitle")
+                    .textContent =
+                    "Test Running";
+            }
+
+
+            if(
+                $("liveTaskName")
+            ){
+
+                $("liveTaskName")
+                    .textContent =
+                    "📝 Test";
+            }
+
+
+            if(
+                $("liveSubject")
+            ){
+
+                $("liveSubject")
+                    .textContent =
+                    test.authority ||
+                    "Self Test";
+            }
+
+
+            if(
+                $("liveTimer")
+            ){
+
+                const remaining =
+                    Math.max(
+                        0,
+                        num(test.endAt) -
+                        Date.now()
+                    );
+
+
+                $("liveTimer")
+                    .textContent =
+                    duration(
+                        Math.ceil(
+                            remaining / 1000
+                        )
+                    );
+            }
+
+
+            if(
+                $("liveChapter")
+            ){
+
+                const topics =
+                    arr(
+                        test.subjects
+                    )
+                    .map(
+                        x =>
+                            `${x.subject || ""} — ${x.chapter || ""}`
+                    )
+                    .join(" | ");
+
+
+                $("liveChapter")
+                    .textContent =
+                    topics ||
+                    "Test in progress";
+            }
+
+
+            $("liveStatusDot")
+                ?.classList
+                .add("active");
+
+
+            return;
+        }
+
+
+        /* ================================================
+           2. LIVE STUDY / SELF STUDY / DAILY REPAIR
+           ================================================ */
+
+        const study =
+            liveStudy();
+
+
+        if(study){
+
+            if(
+                $("liveStatusTitle")
+            ){
+
+                $("liveStatusTitle")
+                    .textContent =
+                    "Studying Now";
+            }
+
+
+            if(
+                $("liveTaskName")
+            ){
+
+                $("liveTaskName")
+                    .textContent =
+                    `${study.taskName} — ${study.activity}`;
+            }
+
+
+            if(
+                $("liveSubject")
+            ){
+
+                $("liveSubject")
+                    .textContent =
+                    study.subject;
+            }
+
+
+            if(
+                $("liveTimer")
+            ){
+
+                $("liveTimer")
+                    .textContent =
+                    duration(
+                        study.elapsed
+                    );
+            }
+
+
+            if(
+                $("liveChapter")
+            ){
+
+                $("liveChapter")
+                    .textContent =
+                    study.chapter;
+            }
+
+
+            $("liveStatusDot")
+                ?.classList
+                .add("active");
+
+
+            return;
+        }
+
+
+        /* ================================================
+           3. NO ACTIVE SESSION
+           ================================================ */
+
+        let scheduled =
+            -1;
+
+
+        try{
+
+            if(
+                typeof TASKS !==
+                    "undefined" &&
+                typeof nowIn ===
+                    "function"
+            ){
+
+                scheduled =
+                    TASKS
+                        .slice(0,8)
+                        .findIndex(
+                            nowIn
+                        );
+            }
+
+        }catch(_){}
+
+
+        if(
+            scheduled >= 0 &&
+            typeof TASKS !==
+                "undefined"
+        ){
+
+            const t =
+                TASKS[scheduled];
+
+
+            if(
+                $("liveStatusTitle")
+            ){
+
+                $("liveStatusTitle")
+                    .textContent =
+                    "Scheduled";
+            }
+
+
+            if(
+                $("liveTaskName")
+            ){
+
+                $("liveTaskName")
+                    .textContent =
+                    t.name;
+            }
+
+
+            if(
+                $("liveSubject")
+            ){
+
+                $("liveSubject")
+                    .textContent =
+                    t.subject ||
+                    "—";
+            }
+
+
+            if(
+                $("liveTimer")
+            ){
+
+                $("liveTimer")
+                    .textContent =
+                    `${t.start} – ${t.end}`;
+            }
+
+
+            if(
+                $("liveChapter")
+            ){
+
+                $("liveChapter")
+                    .textContent =
+                    "Waiting for study start";
+            }
+
+
+            $("liveStatusDot")
+                ?.classList
+                .remove("active");
+
+
+            return;
+        }
+
+
+        /* ================================================
+           4. NOTHING
+           ================================================ */
+
+        if(
+            $("liveStatusTitle")
+        ){
+
+            $("liveStatusTitle")
+                .textContent =
+                "Not Studying";
+        }
+
+
+        if(
+            $("liveTaskName")
+        ){
+
+            $("liveTaskName")
+                .textContent =
+                "No active task";
+        }
+
+
+        if(
+            $("liveSubject")
+        ){
+
+            $("liveSubject")
+                .textContent =
+                "—";
+        }
+
+
+        if(
+            $("liveTimer")
+        ){
+
+            $("liveTimer")
+                .textContent =
+                "00:00:00";
+        }
+
+
+        if(
+            $("liveChapter")
+        ){
+
+            $("liveChapter")
+                .textContent =
+                "—";
+        }
+
+
+        $("liveStatusDot")
+            ?.classList
+            .remove("active");
+    }
+
+
+    /* =====================================================
+       EXTRA LIVE DETAIL
+       ===================================================== */
+
+    function ensureLiveDetail(){
+
+        let box =
+            $("nposLiveDetailFinal");
+
+
+        if(box){
+            return box;
+        }
+
+
+        const anchor =
+            $("liveChapter") ||
+            $("liveTaskName");
+
+
+        if(!anchor){
+            return null;
+        }
+
+
+        box =
+            document.createElement(
+                "div"
+            );
+
+
+        box.id =
+            "nposLiveDetailFinal";
+
+
+        box.style.cssText = `
+            margin-top:12px;
+            padding:13px 15px;
+            border-radius:14px;
+            background:rgba(255,255,255,.05);
+            border:1px solid rgba(255,255,255,.09);
+            font-size:13px;
+            line-height:1.7;
+        `;
+
+
+        box.innerHTML = `
+            <div style="
+                font-size:11px;
+                opacity:.55;
+                font-weight:800;
+                margin-bottom:4px;
+            ">
+                LIVE STUDY DETAILS
+            </div>
+
+            <div id="nposLiveDetailContent">
+                Waiting...
+            </div>
+        `;
+
+
+        anchor.parentElement
+            ?.appendChild(box);
+
+
+        return box;
+    }
+
+
+    function updateLiveDetail(){
+
+        const box =
+            ensureLiveDetail();
+
+
+        if(!box){
+            return;
+        }
+
+
+        const content =
+            $("nposLiveDetailContent");
+
+
+        if(!content){
+            return;
+        }
+
+
+        const test =
+            activeTest();
+
+
+        if(test){
+
+            const topics =
+                arr(
+                    test.subjects
+                )
+                .map(
+                    x =>
+                        `${x.subject || ""} — ${x.chapter || ""} (${x.questions || 0} Q)`
+                )
+                .join(" | ");
+
+
+            const remaining =
+                Math.max(
+                    0,
+                    num(test.endAt) -
+                    Date.now()
+                );
+
+
+            content.innerHTML = `
+
+                <div>
+                    <b>Mode:</b>
+                    Test
+                </div>
+
+                <div>
+                    <b>Authority:</b>
+                    ${esc(
+                        test.authority ||
+                        "Self Test"
+                    )}
+                </div>
+
+                <div>
+                    <b>Topics:</b>
+                    ${esc(
+                        topics ||
+                        "—"
+                    )}
+                </div>
+
+                <div>
+                    <b>Questions:</b>
+                    ${num(
+                        test.totalQuestions
+                    )}
+                </div>
+
+                <div>
+                    <b>Full Marks:</b>
+                    ${num(
+                        test.fullMarks
+                    )}
+                </div>
+
+                <div>
+                    <b>Time Left:</b>
+                    ${duration(
+                        Math.ceil(
+                            remaining /
+                            1000
+                        )
+                    )}
+                </div>
+            `;
+
+            return;
+        }
+
+
+        const study =
+            liveStudy();
+
+
+        if(study){
+
+            content.innerHTML = `
+
+                <div>
+                    <b>Activity:</b>
+                    ${esc(
+                        study.activity
+                    )}
+                </div>
+
+                <div>
+                    <b>Subject:</b>
+                    ${esc(
+                        study.subject
+                    )}
+                </div>
+
+                <div>
+                    <b>Chapter:</b>
+                    ${esc(
+                        study.chapter
+                    )}
+                </div>
+
+                <div>
+                    <b>Study Time:</b>
+                    ${duration(
+                        study.elapsed
+                    )}
+                </div>
+            `;
+
+            return;
+        }
+
+
+        content.innerHTML = `
+            <span style="opacity:.55">
+                No active study session.
+            </span>
+        `;
+    }
+
+
+    /* =====================================================
+       TEST ANALYSIS
+       ===================================================== */
+
+    function percentage(test){
+
+        if(
+            test.percentage !==
+                null &&
+            test.percentage !==
+                undefined
+        ){
+
+            const p =
+                Number(
+                    test.percentage
+                );
+
+            if(
+                Number.isFinite(p)
+            ){
+
+                return p;
+            }
+        }
+
+
+        const score =
+            Number(
+                test.score
+            );
+
+
+        const marks =
+            Number(
+                test.fullMarks
+            );
+
+
+        if(
+            Number.isFinite(score) &&
+            Number.isFinite(marks) &&
+            marks > 0
+        ){
+
+            return (
+                score /
+                marks *
+                100
+            );
+        }
+
+
+        return null;
+    }
+
+
+    function scored(test){
+
+        return (
+            test.score !==
+                null &&
+            test.score !==
+                undefined &&
+            Number.isFinite(
+                Number(
+                    test.score
+                )
+            )
+        );
+    }
+
+
+    function renderTestAnalysis(){
+
+        const statsPage =
+            $("statsPage");
+
+
+        if(!statsPage){
+            return;
+        }
+
+
+        let box =
+            $("nposTestAnalysisFinal");
+
+
+        if(!box){
+
+            box =
+                document.createElement(
+                    "div"
+                );
+
+
+            box.id =
+                "nposTestAnalysisFinal";
+
+
+            box.style.cssText = `
+                margin-top:20px;
+                padding:18px;
+                border-radius:18px;
+                background:rgba(255,255,255,.035);
+                border:1px solid rgba(255,255,255,.09);
+                box-sizing:border-box;
+            `;
+
+
+            statsPage.appendChild(
+                box
+            );
+        }
+
+
+        const records =
+            testRecords();
+
+
+        const active =
+            activeTest();
+
+
+        let totalQuestions = 0;
+        let correct = 0;
+        let incorrect = 0;
+        let skipped = 0;
+        let totalScore = 0;
+        let totalMarks = 0;
+        let scoredCount = 0;
+        let percentageTotal = 0;
+
+
+        records.forEach(
+            test => {
+
+                if(
+                    !scored(test)
+                ){
+                    return;
+                }
+
+
+                scoredCount++;
+
+
+                totalQuestions +=
+                    num(
+                        test.totalQuestions
+                    );
+
+
+                correct +=
+                    num(
+                        test.correct
+                    );
+
+
+                incorrect +=
+                    num(
+                        test.incorrect
+                    );
+
+
+                skipped +=
+                    num(
+                        test.skipped
+                    );
+
+
+                totalScore +=
+                    num(
+                        test.score
+                    );
+
+
+                totalMarks +=
+                    num(
+                        test.fullMarks
+                    );
+
+
+                const p =
+                    percentage(
+                        test
+                    );
+
+
+                if(p !== null){
+
+                    percentageTotal +=
+                        p;
+                }
+            }
+        );
+
+
+        const avg =
+            scoredCount
+                ? percentageTotal /
+                  scoredCount
+                : 0;
+
+
+        const accuracyBase =
+            correct +
+            incorrect;
+
+
+        const accuracy =
+            accuracyBase
+                ? correct /
+                  accuracyBase *
+                  100
+                : 0;
+
+
+        /*
+           SUBJECT ANALYSIS
+        */
+
+        const subjectMap =
+            new Map();
+
+
+        records.forEach(
+            test => {
+
+                arr(
+                    test.subjects
+                )
+                .forEach(
+                    item => {
+
+                        const subject =
+                            String(
+                                item.subject ||
+                                "Unknown"
+                            );
+
+
+                        if(
+                            !subjectMap.has(
+                                subject
+                            )
+                        ){
+
+                            subjectMap.set(
+                                subject,
+                                {
+                                    tests:0,
+                                    questions:0
+                                }
+                            );
+                        }
+
+
+                        const row =
+                            subjectMap.get(
+                                subject
+                            );
+
+
+                        row.tests++;
+
+
+                        row.questions +=
+                            num(
+                                item.questions
+                            );
+                    }
+                );
+            }
+        );
+
+
+        const subjectHTML =
+            Array.from(
+                subjectMap.entries()
+            )
+            .map(
+                ([name,row]) => `
+
+                    <div style="
+                        padding:9px 0;
+                        border-bottom:
+                            1px solid
+                            rgba(255,255,255,.07);
+                    ">
+
+                        <b>
+                            ${esc(name)}
+                        </b>
+
+                        <div style="
+                            opacity:.65;
+                            font-size:12px;
+                            margin-top:2px;
+                        ">
+                            ${row.tests}
+                            test entries •
+                            ${row.questions}
+                            questions
+                        </div>
+
+                    </div>
+                `
+            )
+            .join("");
+
+
+        /*
+           AUTHORITY ANALYSIS
+        */
+
+        const authorityMap =
+            new Map();
+
+
+        records.forEach(
+            test => {
+
+                const authority =
+                    String(
+                        test.authority ||
+                        "Unknown"
+                    );
+
+
+                if(
+                    !authorityMap.has(
+                        authority
+                    )
+                ){
+
+                    authorityMap.set(
+                        authority,
+                        {
+                            tests:0,
+                            scored:0,
+                            percent:0
+                        }
+                    );
+                }
+
+
+                const row =
+                    authorityMap.get(
+                        authority
+                    );
+
+
+                row.tests++;
+
+
+                if(
+                    scored(test)
+                ){
+
+                    row.scored++;
+
+
+                    const p =
+                        percentage(
+                            test
+                        );
+
+
+                    if(p !== null){
+
+                        row.percent +=
+                            p;
+                    }
+                }
+            }
+        );
+
+
+        const authorityHTML =
+            Array.from(
+                authorityMap.entries()
+            )
+            .map(
+                ([name,row]) => `
+
+                    <div style="
+                        padding:9px 0;
+                        border-bottom:
+                            1px solid
+                            rgba(255,255,255,.07);
+                    ">
+
+                        <b>
+                            ${esc(name)}
+                        </b>
+
+                        <div style="
+                            opacity:.65;
+                            font-size:12px;
+                            margin-top:2px;
+                        ">
+                            ${row.tests}
+                            tests •
+                            ${
+                                row.scored
+                                    ? Math.round(
+                                        row.percent /
+                                        row.scored
+                                    )
+                                    : 0
+                            }%
+                            average
+                        </div>
+
+                    </div>
+                `
+            )
+            .join("");
+
+
+        /*
+           RECENT TESTS
+        */
+
+        const recent =
+            records
+                .slice()
+                .sort(
+                    (a,b) =>
+                        num(
+                            b.completedAt ||
+                            b.startedAt
+                        ) -
+                        num(
+                            a.completedAt ||
+                            a.startedAt
+                        )
+                )
+                .slice(
+                    0,
+                    10
+                );
+
+
+        const recentHTML =
+            recent.length
+                ? recent
+                    .map(
+                        test => {
+
+                            const p =
+                                percentage(
+                                    test
+                                );
+
+
+                            const topics =
+                                arr(
+                                    test.subjects
+                                )
+                                .map(
+                                    x =>
+                                        `${x.subject || ""} — ${x.chapter || ""}`
+                                )
+                                .join(
+                                    " | "
+                                );
+
+
+                            return `
+
+                                <div style="
+                                    padding:12px 0;
+                                    border-bottom:
+                                        1px solid
+                                        rgba(255,255,255,.08);
+                                ">
+
+                                    <b>
+                                        ${esc(
+                                            test.authority ||
+                                            "Test"
+                                        )}
+                                    </b>
+
+                                    <div style="
+                                        font-size:12px;
+                                        opacity:.65;
+                                        margin-top:4px;
+                                    ">
+                                        ${esc(
+                                            topics ||
+                                            "No topic data"
+                                        )}
+                                    </div>
+
+                                    <div style="
+                                        margin-top:5px;
+                                    ">
+                                        ${num(
+                                            test.totalQuestions
+                                        )}
+                                        Q •
+                                        ${num(
+                                            test.fullMarks
+                                        )}
+                                        Marks
+                                    </div>
+
+                                    <div style="
+                                        margin-top:4px;
+                                        font-weight:800;
+                                    ">
+                                        ${
+                                            scored(test)
+                                                ? `${num(test.score)} / ${num(test.fullMarks)} ${p !== null ? `(${Math.round(p)}%)` : ""}`
+                                                : "⏳ Score Pending"
+                                        }
+                                    </div>
+
+                                    <div style="
+                                        font-size:11px;
+                                        opacity:.5;
+                                        margin-top:3px;
+                                    ">
+                                        ${dateText(
+                                            test.completedAt ||
+                                            test.startedAt
+                                        )}
+                                    </div>
+
+                                </div>
+                            `;
+                        }
+                    )
+                    .join("")
+                : `
+                    <div style="
+                        opacity:.6;
+                        padding:8px 0;
+                    ">
+                        No test records yet.
+                    </div>
+                `;
+
+
+        const activeHTML =
+            active
+                ? `
+
+                    <div style="
+                        padding:14px;
+                        margin-bottom:16px;
+                        border-radius:14px;
+                        background:rgba(40,140,255,.08);
+                        border:1px solid rgba(80,170,255,.22);
+                    ">
+
+                        <div style="
+                            font-weight:900;
+                            margin-bottom:7px;
+                        ">
+                            🔴 TEST RUNNING
+                        </div>
+
+                        <div style="
+                            font-size:13px;
+                            line-height:1.7;
+                        ">
+
+                            <b>Authority:</b>
+                            ${esc(
+                                active.authority ||
+                                "Self Test"
+                            )}
+
+                            <br>
+
+                            <b>Questions:</b>
+                            ${num(
+                                active.totalQuestions
+                            )}
+
+                            <br>
+
+                            <b>Full Marks:</b>
+                            ${num(
+                                active.fullMarks
+                            )}
+
+                        </div>
+
+                    </div>
+                `
+                : "";
+
+
+        box.innerHTML = `
+
+            <div style="
+                font-size:21px;
+                font-weight:900;
+                margin-bottom:4px;
+            ">
+                📝 Test Analysis
+            </div>
+
+            <div style="
+                font-size:12px;
+                opacity:.55;
+                margin-bottom:16px;
+            ">
+                Live student test performance
+            </div>
+
+
+            ${activeHTML}
+
+
+            <div style="
+                display:grid;
+                grid-template-columns:
+                    repeat(
+                        auto-fit,
+                        minmax(
+                            125px,
+                            1fr
+                        )
+                    );
+                gap:9px;
+                margin-bottom:20px;
+            ">
+
+                ${stat(
+                    "Total Tests",
+                    records.length
+                )}
+
+                ${stat(
+                    "Scored",
+                    scoredCount
+                )}
+
+                ${stat(
+                    "Questions",
+                    totalQuestions
+                )}
+
+                ${stat(
+                    "Correct",
+                    correct
+                )}
+
+                ${stat(
+                    "Incorrect",
+                    incorrect
+                )}
+
+                ${stat(
+                    "Skipped",
+                    skipped
+                )}
+
+                ${stat(
+                    "Average",
+                    scoredCount
+                        ? Math.round(avg) + "%"
+                        : "—"
+                )}
+
+                ${stat(
+                    "Accuracy",
+                    accuracyBase
+                        ? Math.round(
+                            accuracy
+                        ) + "%"
+                        : "—"
+                )}
+
+                ${stat(
+                    "Total Score",
+                    scoredCount
+                        ? `${totalScore}/${totalMarks}`
+                        : "—"
+                )}
+
+            </div>
+
+
+            <div style="
+                display:grid;
+                grid-template-columns:
+                    repeat(
+                        auto-fit,
+                        minmax(
+                            250px,
+                            1fr
+                        )
+                    );
+                gap:20px;
+            ">
+
+                <div>
+
+                    <div style="
+                        font-weight:900;
+                        margin-bottom:6px;
+                    ">
+                        📚 Subject Analysis
+                    </div>
+
+                    ${
+                        subjectHTML ||
+                        `<span style="opacity:.55">
+                            No subject data
+                        </span>`
+                    }
+
+                </div>
+
+
+                <div>
+
+                    <div style="
+                        font-weight:900;
+                        margin-bottom:6px;
+                    ">
+                        🏷️ Test Authority
+                    </div>
+
+                    ${
+                        authorityHTML ||
+                        `<span style="opacity:.55">
+                            No authority data
+                        </span>`
+                    }
+
+                </div>
+
+            </div>
+
+
+            <div style="
+                margin-top:20px;
+            ">
+
+                <div style="
+                    font-weight:900;
+                    margin-bottom:6px;
+                ">
+                    🕘 Recent Test History
+                </div>
+
+                ${recentHTML}
+
+            </div>
+
+
+            <div style="
+                margin-top:12px;
+                font-size:10px;
+                opacity:.4;
+            ">
+                Read-only • Auto refreshed
+            </div>
+        `;
+    }
+
+
+    function stat(
+        label,
+        value
+    ){
+
+        return `
+
+            <div style="
+                padding:11px;
+                border-radius:12px;
+                background:
+                    rgba(255,255,255,.045);
+                border:
+                    1px solid
+                    rgba(255,255,255,.07);
+            ">
+
+                <div style="
+                    font-size:10px;
+                    opacity:.55;
+                    margin-bottom:4px;
+                ">
+                    ${esc(label)}
+                </div>
+
+                <div style="
+                    font-size:17px;
+                    font-weight:900;
+                ">
+                    ${esc(value)}
+                </div>
+
+            </div>
+        `;
+    }
+
+
+    /* =====================================================
+       MAIN REFRESH
+
+       ONLY interval.
+       NO MutationObserver.
+       ===================================================== */
+
+    function refresh(){
+
+        try{
+
+            updateMainLive();
+
+            updateLiveDetail();
+
+            renderTestAnalysis();
+
+        }catch(error){
+
+            console.warn(
+                "NP-OS Final Addon refresh error:",
+                error
+            );
+        }
+    }
+
+
+    /* =====================================================
+       START
+       ===================================================== */
+
+    function start(){
+
+        refresh();
+
+
+        clearInterval(
+            timer
+        );
+
+
+        timer =
+            setInterval(
+                refresh,
+                REFRESH
+            );
+
+
+        console.log(
+            "NP-OS FINAL LIVE + TEST FIX v" +
+            VERSION +
+            " loaded."
+        );
+    }
+
+
+    /* =====================================================
+       PUBLIC API
+       ===================================================== */
+
+    window.NPOSFinalAddon = {
+
+        version:
+            VERSION,
+
+        refresh,
+
+        liveStudy,
+
+        activeTest,
+
+        testRecords
+    };
+
+
+    if(
+        document.readyState ===
+        "loading"
+    ){
+
+        document.addEventListener(
+            "DOMContentLoaded",
+            start,
+            {
+                once:true
+            }
+        );
+
+    }else{
+
+        start();
+    }
+
+})();
+/* =========================================================
+   NPOS — LIVE CHAPTER FINAL OVERRIDE
+   Extra addon only — DOES NOT DELETE / MODIFY old addons
+   Fixes Chapter blink between old + new live renderers
+   ========================================================= */
+
+(function NPOSLiveChapterFinalOverride(){
+
+    let observer = null;
+    let lastChapter = "";
+
+    function getFinalChapter(){
+
+        try{
+
+            if(typeof cur !== "function") return null;
+
+            const d = cur();
+
+            if(!d) return null;
+
+            const activeIndex =
+                Number.isInteger(d.activeTask)
+                    ? d.activeTask
+                    : null;
+
+            if(
+                activeIndex === null ||
+                !TASKS ||
+                !TASKS[activeIndex]
+            ){
+                return null;
+            }
+
+            const meta =
+                d.taskMeta?.[activeIndex] || {};
+
+            /*
+             * Self Study addon-এর actual chapter
+             * সর্বপ্রথম নেওয়া হবে।
+             */
+
+            return (
+                meta.addonChapter ||
+                meta.chapter ||
+                null
+            );
+
+        }catch(error){
+
+            return null;
+
+        }
+
+    }
+
+
+    function forceChapter(){
+
+        const el =
+            document.getElementById("liveChapter");
+
+        if(!el) return;
+
+        const chapter = getFinalChapter();
+
+        if(!chapter) return;
+
+        /*
+         * Same value হলে DOM touch করব না।
+         */
+
+        if(
+            el.textContent === chapter &&
+            lastChapter === chapter
+        ){
+            return;
+        }
+
+        lastChapter = chapter;
+
+        if(el.textContent !== chapter){
+            el.textContent = chapter;
+        }
+
+    }
+
+
+    function install(){
+
+        const el =
+            document.getElementById("liveChapter");
+
+        if(!el){
+
+            setTimeout(install, 500);
+            return;
+
+        }
+
+
+        /*
+         * Initial correction
+         */
+
+        forceChapter();
+
+
+        /*
+         * IMPORTANT:
+         * শুধু liveChapter observe করছি।
+         * পুরো body observe করছি না।
+         *
+         * তাই loading / infinite loop হবে না।
+         */
+
+        if(observer){
+            observer.disconnect();
+        }
+
+        observer = new MutationObserver(function(){
+
+            const chapter = getFinalChapter();
+
+            if(!chapter) return;
+
+            /*
+             * Old NP-OS renderer যদি
+             * "Chapter not specified" বা অন্য কিছু বসায়,
+             * সঙ্গে সঙ্গে actual chapter restore হবে।
+             */
+
+            if(el.textContent !== chapter){
+
+                el.textContent = chapter;
+
+            }
+
+            lastChapter = chapter;
+
+        });
+
+
+        observer.observe(el, {
+            childList: true,
+            characterData: true,
+            subtree: true
+        });
+
+
+        console.log(
+            "NPOS: Live Chapter Final Override active."
+        );
+
+    }
+
+
+    /*
+     * DOM ready হলে install
+     */
+
+    if(document.readyState === "loading"){
+
+        document.addEventListener(
+            "DOMContentLoaded",
+            install,
+            { once:true }
+        );
+
+    }else{
+
+        setTimeout(install, 300);
+
+    }
+
+
+    /*
+     * Extra safety:
+     * প্রতি 1 sec শুধু check করবে।
+     * DOM rebuild করবে না।
+     */
+
+    setInterval(function(){
+
+        forceChapter();
+
+    }, 1000);
+
+
+    window.NPOSLiveChapterFinalOverride = {
+        version: "1.0.0",
+        refresh: forceChapter
+    };
+
+})();
+/* =========================================================
+   NPOS — LIVE STUDY FINAL LOCK
+   Extra addon only
+   Does NOT delete or modify existing addons
+   Fixes Self Study / Subject / Chapter blinking
+   ========================================================= */
+
+(function NPOSLiveStudyFinalLock(){
+
+    let observer = null;
+
+    function getLiveData(){
+
+        try{
+
+            if(typeof cur !== "function") return null;
+
+            const d = cur();
+
+            if(!d) return null;
+
+            const index =
+                Number.isInteger(d.activeTask)
+                    ? d.activeTask
+                    : null;
+
+            if(
+                index === null ||
+                !TASKS ||
+                !TASKS[index]
+            ){
+                return null;
+            }
+
+            const task = TASKS[index];
+
+            const meta =
+                d.taskMeta?.[index] || {};
+
+            /*
+             * Self Study addon data
+             */
+
+            const activity =
+                meta.addonActivity ||
+                null;
+
+            const subject =
+                meta.addonSubject ||
+                task.subject ||
+                "Mixed";
+
+            const chapter =
+                meta.addonChapter ||
+                meta.chapter ||
+                "Chapter not specified";
+
+            let taskName =
+                task.name || "Studying";
+
+            /*
+             * Self Study হলে activity সহ title
+             */
+
+            if(
+                taskName === "Self Study" &&
+                activity
+            ){
+                taskName =
+                    "Self Study — " + activity;
+            }
+
+            return {
+                taskName,
+                subject,
+                chapter
+            };
+
+        }catch(error){
+
+            console.warn(
+                "NPOS Live Study Final Lock:",
+                error
+            );
+
+            return null;
+        }
+    }
+
+
+    function forceLive(){
+
+        const data = getLiveData();
+
+        if(!data) return;
+
+
+        const title =
+            document.getElementById("liveTaskName");
+
+        const subject =
+            document.getElementById("liveSubject");
+
+        const chapter =
+            document.getElementById("liveChapter");
+
+
+        /*
+         * IMPORTANT:
+         * Only change when necessary.
+         * This prevents unnecessary DOM repaint.
+         */
+
+        if(
+            title &&
+            title.textContent !== data.taskName
+        ){
+            title.textContent = data.taskName;
+        }
+
+
+        if(
+            subject &&
+            subject.textContent !== data.subject
+        ){
+            subject.textContent = data.subject;
+        }
+
+
+        if(
+            chapter &&
+            chapter.textContent !== data.chapter
+        ){
+            chapter.textContent = data.chapter;
+        }
+
+    }
+
+
+    function install(){
+
+        const title =
+            document.getElementById("liveTaskName");
+
+        const subject =
+            document.getElementById("liveSubject");
+
+        const chapter =
+            document.getElementById("liveChapter");
+
+
+        if(
+            !title ||
+            !subject ||
+            !chapter
+        ){
+            setTimeout(install, 500);
+            return;
+        }
+
+
+        /*
+         * First correction
+         */
+
+        forceLive();
+
+
+        /*
+         * Observe ONLY these 3 elements.
+         *
+         * NOT document.body
+         * NOT the whole page
+         *
+         * So this cannot create the previous
+         * loading / infinite MutationObserver problem.
+         */
+
+        if(observer){
+            observer.disconnect();
+        }
+
+
+        observer = new MutationObserver(function(){
+
+            forceLive();
+
+        });
+
+
+        observer.observe(title, {
+            childList: true,
+            characterData: true,
+            subtree: true
+        });
+
+
+        observer.observe(subject, {
+            childList: true,
+            characterData: true,
+            subtree: true
+        });
+
+
+        observer.observe(chapter, {
+            childList: true,
+            characterData: true,
+            subtree: true
+        });
+
+
+        console.log(
+            "NPOS: Live Study Final Lock active."
+        );
+
+    }
+
+
+    /*
+     * Install after NP-OS + previous addons
+     * have finished loading.
+     */
+
+    if(document.readyState === "loading"){
+
+        document.addEventListener(
+            "DOMContentLoaded",
+            function(){
+                setTimeout(install, 500);
+            },
+            { once:true }
+        );
+
+    }else{
+
+        setTimeout(install, 500);
+
+    }
+
+
+    /*
+     * Safety refresh.
+     * Only checks values; does not rebuild UI.
+     */
+
+    setInterval(function(){
+
+        forceLive();
+
+    }, 1000);
+
+
+    window.NPOSLiveStudyFinalLock = {
+        version: "1.0.0",
+        refresh: forceLive
+    };
+
+})();
+/* =========================================================
+   NP-OS — STUDENT SELF ACCESS
+   ---------------------------------------------------------
+   Student can access their own NEET OS data.
+   Guardian access remains unchanged.
+   Extra addon only.
+   NO Firebase write.
+   ========================================================= */
+
+(function NPOSStudentSelfAccess(){
+
+    const DB_URL =
+        "https://np-os-b0eed-default-rtdb.firebaseio.com";
+
+    let lastStudentUID = null;
+
+
+    async function getToken(user){
+
+        try{
+            return await user.getIdToken();
+        }catch(error){
+
+            console.error(
+                "NP-OS Student Access: Token error",
+                error
+            );
+
+            return null;
+        }
+    }
+
+
+    async function loadOwnData(user){
+
+        if(!user) return;
+
+        try{
+
+            const token =
+                await getToken(user);
+
+            if(!token) return;
+
+
+            const studentUID =
+                user.uid;
+
+
+            /*
+             * Student reads ONLY their own
+             * users/{uid}/neetOS
+             */
+
+            const url =
+                DB_URL +
+                "/users/" +
+                encodeURIComponent(studentUID) +
+                "/neetOS.json?auth=" +
+                encodeURIComponent(token);
+
+
+            const response =
+                await fetch(url);
+
+
+            if(!response.ok){
+
+                console.warn(
+                    "NP-OS Student Access: Own data read failed.",
+                    response.status
+                );
+
+                return;
+            }
+
+
+            const snapshot =
+                await response.json();
+
+
+            if(!snapshot){
+
+                console.warn(
+                    "NP-OS Student Access: Own NEET OS data not found."
+                );
+
+                return;
+            }
+
+
+            /*
+             * Apply exactly like Firebase cloud data.
+             */
+
+            if(
+                typeof normCurrent === "function"
+            ){
+                S.current =
+                    normCurrent(
+                        snapshot.studyData
+                    );
+            }
+
+
+            if(
+                typeof normHistory === "function"
+            ){
+                S.history =
+                    normHistory(
+                        snapshot.history
+                    );
+            }
+
+
+            if(
+                typeof normSyllabus === "function"
+            ){
+                S.syllabus =
+                    normSyllabus(
+                        snapshot.syllabus
+                    );
+            }
+
+
+            S.settings =
+                snapshot.settings ?? null;
+
+
+            if(snapshot.syncedAt){
+
+                const date =
+                    new Date(
+                        snapshot.syncedAt
+                    );
+
+                if(
+                    !Number.isNaN(
+                        date.getTime()
+                    )
+                ){
+
+                    S.lastSynced =
+                        date;
+
+                    localStorage.setItem(
+                        "NPOS_LAST_SYNC",
+                        date.toISOString()
+                    );
+                }
+            }
+
+
+            /*
+             * Mark source as Student Self Access.
+             */
+
+            S.source =
+                "Firebase Cloud • Student Self Access";
+
+
+            lastStudentUID =
+                studentUID;
+
+
+            updateAll();
+            syncPage();
+
+
+            console.log(
+                "NP-OS Student: Own data loaded.",
+                {
+                    studentUID:
+                        studentUID,
+                    syncedAt:
+                        snapshot.syncedAt || null
+                }
+            );
+
+
+        }catch(error){
+
+            console.error(
+                "NP-OS Student Self Access Error:",
+                error
+            );
+
+        }
+
+    }
+
+
+    function checkStudent(){
+
+        const user =
+            window.NPOSFirebase?.user;
+
+        if(!user) return;
+
+
+        /*
+         * Every logged-in user can try their own
+         * UID. Firebase Security Rules will decide
+         * whether that read is permitted.
+         */
+
+        loadOwnData(user);
+
+    }
+
+
+    /*
+     * First load
+     */
+
+    setTimeout(
+        checkStudent,
+        2000
+    );
+
+
+    /*
+     * Keep student data refreshed.
+     * Guardian system remains untouched.
+     */
+
+    setInterval(
+        checkStudent,
+        10000
+    );
+
+
+    window.NPOSStudentAccess = {
+
+        status: () => ({
+            studentUID:
+                lastStudentUID,
+
+            connected:
+                !!window.NPOSFirebase?.user,
+
+            source:
+                S.source
+        })
+
+    };
+
+
+    console.log(
+        "NP-OS: Student Self Access addon ready."
+    );
+
+})();
+/* =========================================================
+   NP-OS — SIDEBAR / NAVIGATION SCROLL FIX
+   Extra addon only
+   Does NOT modify existing JS logic
+   ========================================================= */
+
+(function NPOSSIDEBARScrollFix(){
+
+    const style = document.createElement("style");
+
+    style.id = "nposSidebarScrollFix";
+
+    style.textContent = `
+
+        /* Main navigation / drawer containers */
+        nav,
+        aside,
+        .sidebar,
+        .side-nav,
+        .navigation,
+        .nav-menu,
+        .drawer,
+        .menu,
+        .app-sidebar {
+
+            max-height: 100vh !important;
+            height: 100vh !important;
+
+            overflow-y: auto !important;
+            overflow-x: hidden !important;
+
+            box-sizing: border-box !important;
+
+            -webkit-overflow-scrolling: touch !important;
+
+            scrollbar-width: thin;
+        }
+
+
+        /*
+         * If the navigation itself is inside
+         * a fixed drawer/container.
+         */
+
+        nav *,
+        aside *,
+        .sidebar *,
+        .side-nav *,
+        .navigation *,
+        .nav-menu *,
+        .drawer *,
+        .menu *,
+        .app-sidebar * {
+
+            box-sizing: border-box;
+        }
+
+
+        /*
+         * Keep navigation header visible,
+         * while menu items can scroll.
+         */
+
+        .sidebar,
+        .side-nav,
+        .navigation,
+        .nav-menu,
+        .drawer,
+        .menu,
+        .app-sidebar {
+
+            min-height: 0 !important;
+        }
+
+
+        /*
+         * Prevent the page itself from becoming
+         * locked when drawer is open.
+         */
+
+        body {
+
+            overflow-x: hidden !important;
+        }
+
+
+        /*
+         * Make sure menu buttons/items remain reachable.
+         */
+
+        nav,
+        aside,
+        .sidebar,
+        .side-nav,
+        .navigation,
+        .nav-menu,
+        .drawer,
+        .menu,
+        .app-sidebar {
+
+            overscroll-behavior-y: contain !important;
+        }
+
+    `;
+
+    document.head.appendChild(style);
+
+
+    console.log(
+        "NP-OS: Sidebar navigation scroll fix loaded."
+    );
+
+})();
