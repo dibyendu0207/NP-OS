@@ -4788,71 +4788,6 @@ if(
 })();
 
 /* =========================================================
-   NP-OS — LIVE CIRCULAR PROGRESS RING FIX
-   Visual only. Does not modify Firebase, sync, storage,
-   task logic or progress calculation.
-   ========================================================= */
-
-(function NPOSCircularProgressFix() {
-
-    function updateCircularRing() {
-
-        try {
-
-            const ring =
-                document.querySelector(".progress-ring");
-
-            if (!ring) {
-                return;
-            }
-
-            const p =
-                Math.max(
-                    0,
-                    Math.min(
-                        100,
-                        Number(progress()) || 0
-                    )
-                );
-
-            ring.style.background =
-                `conic-gradient(
-                    from -90deg,
-                    #4da3ff 0%,
-                    #4da3ff ${p}%,
-                    rgba(255,255,255,0.10) ${p}%,
-                    rgba(255,255,255,0.10) 100%
-                )`;
-
-        } catch (error) {
-
-            console.warn(
-                "NP-OS: Circular progress visual update failed.",
-                error
-            );
-
-        }
-
-    }
-
-
-    /* Initial paint */
-    updateCircularRing();
-
-
-    /* Keep ring synchronized with the live dashboard */
-    setInterval(
-        updateCircularRing,
-        1000
-    );
-
-
-    console.log(
-        "NP-OS: Circular progress ring FIX loaded."
-    );
-
-})();
-/* =========================================================
    NP-OS — LIVE STUDY DETAIL + TEST ANALYSIS FIX
    Version 3.0.0
    ---------------------------------------------------------
@@ -11568,21 +11503,7 @@ if(
             padding:18px !important;
         }
 
-        .progress-ring{
-
-            background:
-                conic-gradient(
-                    var(--np-red) 0deg,
-                    var(--np-red2) 45%,
-                    rgba(255,255,255,.07) 45%,
-                    rgba(255,255,255,.07) 360deg
-                ) !important;
-
-            box-shadow:
-                0 0 35px rgba(229,9,47,.08);
-        }
-
-        .progress-line-fill,
+.progress-line-fill,
         .large-progress-fill,
         .mini-progress-fill,
         .subject-progress-fill{
@@ -12222,12 +12143,7 @@ if(
                 gap:14px !important;
             }
 
-            .progress-ring{
-                width:135px !important;
-                height:135px !important;
-            }
-
-            .subject-card{
+.subject-card{
                 padding:14px !important;
             }
 
@@ -12476,850 +12392,31 @@ if(
 
 })();
 /* =========================================================
-   NP-OS — FINAL LIVE + CIRCULAR PROGRESS FIX
-   Version: 7.0.0
+   NP-OS — KEEP PREMIUM LIVE STATUS CARD ONLY
+   Progress Ring legacy code removed.
+   ========================================================= */
 
-   FIXES:
-   1. Remove duplicate OLD Live Status card
-   2. Keep NEW Premium Live Student Activity
-   3. Fix circular progress to EXACT real percentage
-   4. 13% = exactly 13% ring fill
-   5. Live ring updates automatically
-   6. No Firebase changes
-   7. No storage changes
-   8. No task logic changes
-   9. No scrollTo / scroll locking
-========================================================= */
-
-(function NPOS_FINAL_LIVE_AND_PROGRESS_FIX(){
-
+(function NPOSKeepPremiumLiveStatusOnly_V7(){
     "use strict";
-
-    if(window.__NPOS_FINAL_LIVE_AND_PROGRESS_FIX_V7) return;
-
-    window.__NPOS_FINAL_LIVE_AND_PROGRESS_FIX_V7 = true;
-
-
-    /* =====================================================
-       1. FINAL CSS
-    ===================================================== */
-
-    const style = document.createElement("style");
-
-    style.id = "nposFinalLiveProgressFixStyle";
-
-    style.textContent = `
-
-        /* =================================================
-           REMOVE OLD DUPLICATE LIVE STATUS
-           Keep the new premium live activity card.
-        ================================================= */
-
-        #liveStatusCard{
-            display:none !important;
-        }
-
-
-        /* =================================================
-           REAL CIRCULAR PROGRESS RING
-        ================================================= */
-
-        .progress-ring{
-
-            position:relative !important;
-
-            background:
-                conic-gradient(
-                    from -90deg,
-                    var(--np-red, #e5092f) 0%,
-                    var(--np-red, #e5092f) var(--np-progress, 0%),
-                    rgba(255,255,255,.075) var(--np-progress, 0%),
-                    rgba(255,255,255,.075) 100%
-                ) !important;
-
-            border-radius:50% !important;
-
-            transition:
-                background .35s ease !important;
-
-        }
-
-
-        /* =================================================
-           INNER CIRCLE
-           Keeps the ring clean / premium.
-        ================================================= */
-
-        .progress-ring::before{
-
-            content:"";
-
-            position:absolute;
-
-            inset:9px;
-
-            border-radius:50%;
-
-            background:
-                #111927;
-
-            z-index:0;
-
-        }
-
-
-        /* Keep percentage text above ring */
-
-        .progress-ring > *{
-
-            position:relative;
-
-            z-index:1;
-
-        }
-
-
-        /* =================================================
-           MOBILE RING
-        ================================================= */
-
-        @media(max-width:700px){
-
-            .progress-ring{
-
-                width:140px !important;
-                height:140px !important;
-
-            }
-
-            .progress-ring::before{
-                inset:8px;
-            }
-
-        }
-
-
-        @media(max-width:380px){
-
-            .progress-ring{
-
-                width:125px !important;
-                height:125px !important;
-
-            }
-
-            .progress-ring::before{
-                inset:7px;
-            }
-
-        }
-
-    `;
-
-    document.head.appendChild(style);
-
-
-    /* =====================================================
-       2. EXACT PROGRESS VALUE
-    ===================================================== */
-
-    function getRealProgress(){
-
-        try{
-
-            if(typeof progress === "function"){
-
-                const value = Number(progress());
-
-                if(Number.isFinite(value)){
-
-                    return Math.max(
-                        0,
-                        Math.min(100, value)
-                    );
-
-                }
-
-            }
-
-        }catch(error){
-
-            console.warn(
-                "NP-OS progress read failed:",
-                error
-            );
-
-        }
-
-        return 0;
-    }
-
-
-    /* =====================================================
-       3. UPDATE RING
-    ===================================================== */
-
-    function updateFinalProgressRing(){
-
-        try{
-
-            const rings =
-                document.querySelectorAll(
-                    ".progress-ring"
-                );
-
-            if(!rings.length) return;
-
-
-            const p =
-                getRealProgress();
-
-
-            rings.forEach(ring=>{
-
-                /* CSS variable controls exact fill */
-
-                ring.style.setProperty(
-                    "--np-progress",
-                    `${p}%`
-                );
-
-
-                /* Direct background fallback
-                   so no older CSS can override it */
-
-                ring.style.background =
-                    `conic-gradient(
-                        from -90deg,
-                        #e5092f 0%,
-                        #e5092f ${p}%,
-                        rgba(255,255,255,.075) ${p}%,
-                        rgba(255,255,255,.075) 100%
-                    )`;
-
-            });
-
-
-            /* Make every visible progress percentage
-               agree with the same real value */
-
-            const percentageIds = [
-
-                "todayProgressPercent",
-                "progressRingValue"
-
-            ];
-
-            percentageIds.forEach(id=>{
-
-                const el =
-                    document.getElementById(id);
-
-                if(el){
-
-                    el.textContent =
-                        `${p}%`;
-
-                }
-
-            });
-
-        }catch(error){
-
-            console.warn(
-                "NP-OS final circular progress update failed:",
-                error
-            );
-
-        }
-
-    }
-
-
-    /* =====================================================
-       4. INITIAL UPDATE
-    ===================================================== */
-
-    function init(){
-
-        updateFinalProgressRing();
-
-        /*
-           Small delayed refreshes because home()
-           may render the ring after page initialization.
-        */
-
-        setTimeout(
-            updateFinalProgressRing,
-            300
-        );
-
-        setTimeout(
-            updateFinalProgressRing,
-            1000
-        );
-
-        setTimeout(
-            updateFinalProgressRing,
-            2000
-        );
-
-    }
-
-
-    /* =====================================================
-       5. LIVE UPDATE LOOP
-    ===================================================== */
-
-    let lastProgress = -1;
-
-    function liveLoop(){
-
-        try{
-
-            const p =
-                getRealProgress();
-
-            /*
-               Only touch DOM when percentage changes.
-               This avoids unnecessary repainting.
-            */
-
-            if(p !== lastProgress){
-
-                lastProgress = p;
-
-                updateFinalProgressRing();
-
-            }
-
-        }catch(error){
-
-            console.warn(
-                "NP-OS live progress loop:",
-                error
-            );
-
-        }
-
-    }
-
-
-    /* =====================================================
-       6. START
-    ===================================================== */
-
-    if(
-        document.readyState ===
-        "loading"
-    ){
-
-        document.addEventListener(
-            "DOMContentLoaded",
-            init,
-            {once:true}
-        );
-
-    }else{
-
-        init();
-
-    }
-
-
-    /*
-       Existing NP-OS already refreshes every second,
-       but this makes the ring independently reliable.
-    */
-
-    setInterval(
-        liveLoop,
-        1000
-    );
-
-
-    /* =====================================================
-       PUBLIC API
-    ===================================================== */
-
-    window.NPOSFinalLiveProgressFix = {
-
-        version:"7.0.0",
-
-        refresh:updateFinalProgressRing,
-
-        getProgress:getRealProgress
-
-    };
-
-
-    console.log(
-        "✅ NP-OS Final Live + Circular Progress Fix v7.0.0 loaded."
-    );
-
+    const style=document.createElement("style");
+    style.id="nposKeepPremiumLiveStatusOnly_V7";
+    style.textContent=`#liveStatusCard{display:none !important;}`;
+    (document.head||document.documentElement).appendChild(style);
 })();
+
 /* =========================================================
-   NP-OS — FINAL LIVE + EXACT PROGRESS RING
-   Version 9.0.0
+   NP-OS — KEEP PREMIUM LIVE STATUS CARD ONLY
+   Progress Ring legacy code removed.
+   ========================================================= */
 
-   FINAL FIX
-   ---------------------------------------------------------
-   • Removes duplicate OLD Live Status
-   • Keeps Premium Live Student Activity
-   • Fixes 45% hard-coded progress ring
-   • Uses REAL progress() value
-   • 13% = exactly 13%
-   • 50% = exactly 50%
-   • 100% = exactly 100%
-   • Mobile friendly
-   • No Firebase writes
-   • No storage changes
-   • No task logic changes
-   • No scroll manipulation
-========================================================= */
-
-(function NPOS_FINAL_LIVE_PROGRESS_V9(){
-
+(function NPOSKeepPremiumLiveStatusOnly_V9(){
     "use strict";
-
-    if(window.__NPOS_FINAL_LIVE_PROGRESS_V9) return;
-
-    window.__NPOS_FINAL_LIVE_PROGRESS_V9 = true;
-
-
-    /* =====================================================
-       1. FINAL CSS OVERRIDE
-    ===================================================== */
-
-    const style =
-        document.createElement("style");
-
-    style.id =
-        "nposFinalLiveProgressV9Style";
-
-    style.textContent = `
-
-        /* =================================================
-           REMOVE OLD DUPLICATE LIVE STATUS
-        ================================================= */
-
-        #liveStatusCard{
-            display:none !important;
-        }
-
-
-        /* =================================================
-           EXACT CIRCULAR PROGRESS
-           
-           IMPORTANT:
-           Original CSS has 45% hard-coded.
-           This rule overrides it.
-        ================================================= */
-
-        .progress-ring{
-
-            width:155px !important;
-            height:155px !important;
-
-            display:flex !important;
-
-            align-items:center !important;
-            justify-content:center !important;
-
-            position:relative !important;
-
-            border-radius:50% !important;
-
-            /*
-               JS writes the real percentage into
-               --npos-progress.
-            */
-
-            background:
-                conic-gradient(
-                    from -90deg,
-                    #e5092f 0%,
-                    #e5092f var(--npos-progress, 0%),
-                    rgba(255,255,255,.08)
-                        var(--npos-progress, 0%),
-                    rgba(255,255,255,.08)
-                        100%
-                ) !important;
-
-        }
-
-
-        /* =================================================
-           INNER CIRCLE
-
-           Original ::before uses var(--card).
-           Force a neutral dark center.
-        ================================================= */
-
-        .progress-ring::before{
-
-            content:"" !important;
-
-            position:absolute !important;
-
-            inset:10px !important;
-
-            width:auto !important;
-            height:auto !important;
-
-            border-radius:50% !important;
-
-            background:
-                #111927 !important;
-
-            z-index:0 !important;
-
-        }
-
-
-        /* =================================================
-           INNER CONTENT
-        ================================================= */
-
-        .progress-ring-inner{
-
-            position:relative !important;
-
-            z-index:2 !important;
-
-            text-align:center !important;
-
-        }
-
-
-        .progress-ring-inner strong{
-
-            display:block !important;
-
-            font-size:34px !important;
-
-            font-weight:900 !important;
-
-            color:#fff !important;
-
-        }
-
-
-        .progress-ring-inner span{
-
-            display:block !important;
-
-            color:#9ca9bd !important;
-
-        }
-
-
-        /* =================================================
-           MOBILE
-        ================================================= */
-
-        @media(max-width:700px){
-
-            .progress-ring{
-
-                width:140px !important;
-                height:140px !important;
-
-            }
-
-            .progress-ring::before{
-
-                inset:9px !important;
-
-            }
-
-        }
-
-
-        @media(max-width:380px){
-
-            .progress-ring{
-
-                width:125px !important;
-                height:125px !important;
-
-            }
-
-            .progress-ring::before{
-
-                inset:8px !important;
-
-            }
-
-        }
-
-    `;
-
-    document.head.appendChild(style);
-
-
-    /* =====================================================
-       2. GET REAL PROGRESS
-    ===================================================== */
-
-    function getProgress(){
-
-        try{
-
-            if(
-                typeof progress ===
-                "function"
-            ){
-
-                let p =
-                    Number(
-                        progress()
-                    );
-
-                if(
-                    Number.isFinite(p)
-                ){
-
-                    return Math.max(
-                        0,
-                        Math.min(
-                            100,
-                            p
-                        )
-                    );
-
-                }
-
-            }
-
-        }catch(error){
-
-            console.warn(
-                "NP-OS: progress() read failed",
-                error
-            );
-
-        }
-
-        return 0;
-
-    }
-
-
-    /* =====================================================
-       3. UPDATE RING
-    ===================================================== */
-
-    function updateRing(){
-
-        try{
-
-            const ring =
-                document.querySelector(
-                    ".progress-ring"
-                );
-
-            if(!ring){
-
-                return;
-
-            }
-
-
-            const p =
-                getProgress();
-
-
-            /*
-               Set CSS variable.
-            */
-
-            ring.style.setProperty(
-                "--npos-progress",
-                `${p}%`
-            );
-
-
-            /*
-               ALSO set inline background.
-
-               This is intentional:
-               it wins over the original CSS
-               which contains hard-coded 45%.
-            */
-
-            ring.style.setProperty(
-                "background",
-                `conic-gradient(
-                    from -90deg,
-                    #e5092f 0%,
-                    #e5092f ${p}%,
-                    rgba(255,255,255,.08) ${p}%,
-                    rgba(255,255,255,.08) 100%
-                )`,
-                "important"
-            );
-
-
-            /*
-               Keep percentage text synced.
-            */
-
-            const topPercent =
-                document.getElementById(
-                    "todayProgressPercent"
-                );
-
-            if(topPercent){
-
-                topPercent.textContent =
-                    `${p}%`;
-
-            }
-
-
-            const ringPercent =
-                document.getElementById(
-                    "progressRingValue"
-                );
-
-            if(ringPercent){
-
-                ringPercent.textContent =
-                    `${p}%`;
-
-            }
-
-        }catch(error){
-
-            console.warn(
-                "NP-OS: Final ring update failed",
-                error
-            );
-
-        }
-
-    }
-
-
-    /* =====================================================
-       4. INITIAL PAINT
-    ===================================================== */
-
-    function init(){
-
-        updateRing();
-
-
-        /*
-           Home() runs during app boot.
-           These delayed refreshes make sure the
-           ring gets painted AFTER home().
-        */
-
-        setTimeout(
-            updateRing,
-            100
-        );
-
-        setTimeout(
-            updateRing,
-            500
-        );
-
-        setTimeout(
-            updateRing,
-            1000
-        );
-
-        setTimeout(
-            updateRing,
-            2000
-        );
-
-    }
-
-
-    /* =====================================================
-       5. LIVE UPDATE
-    ===================================================== */
-
-    let last =
-        null;
-
-
-    setInterval(
-
-        function(){
-
-            const p =
-                getProgress();
-
-
-            /*
-               Only repaint when percentage
-               actually changes.
-            */
-
-            if(
-                p !== last
-            ){
-
-                last = p;
-
-                updateRing();
-
-            }
-
-        },
-
-        1000
-
-    );
-
-
-    /* =====================================================
-       6. START
-    ===================================================== */
-
-    if(
-        document.readyState ===
-        "loading"
-    ){
-
-        document.addEventListener(
-            "DOMContentLoaded",
-            init,
-            {once:true}
-        );
-
-    }else{
-
-        init();
-
-    }
-
-
-    /* =====================================================
-       PUBLIC API
-    ===================================================== */
-
-    window.NPOSFinalLiveProgressV9 = {
-
-        version:"9.0.0",
-
-        refresh:updateRing,
-
-        getProgress:getProgress
-
-    };
-
-
-    console.log(
-        "✅ NP-OS Final Live + Exact Progress v9.0.0 loaded."
-    );
-
+    const style=document.createElement("style");
+    style.id="nposKeepPremiumLiveStatusOnly_V9";
+    style.textContent=`#liveStatusCard{display:none !important;}`;
+    (document.head||document.documentElement).appendChild(style);
 })();
+
 /* =========================================================
    NP-OS — FINAL ERROR + LIVE + PROGRESS STABILITY PATCH
    Version 10.0.0
@@ -13540,110 +12637,931 @@ if(
     );
 
 
-    /* =====================================================
-       5. RE-APPLY EXACT PROGRESS RING
+    /* Progress Ring legacy code removed. Final ring is installed below. */
 
-       V9 remains responsible for the main UI.
-       This is only an additional safety refresh.
-    ===================================================== */
 
-    function refreshRing(){
+    console.log(
+        "✅ NP-OS Final Stability V10 loaded — syllabus error + exact progress protected."
+    );
+
+})();
+
+/* =========================================================
+   NP-OS — FINAL PROGRESS RING
+   Version 4.0.0 — VISUAL ISOLATION
+   ---------------------------------------------------------
+   ONLY Progress Ring code.
+
+   • All legacy ring painters have been removed above.
+   • The ring is rendered by ::after, independently of the
+     old .progress-ring background.
+   • Uses ONLY the existing progress() calculation.
+   • No Firebase changes.
+   • No localStorage changes.
+   • No task/progress calculation changes.
+   • No scroll changes.
+   • No DOM rebuilding of the progress card.
+   • No transition/animation, so no percentage flash.
+   ========================================================= */
+
+(function NPOS_FINAL_PROGRESS_RING_V4(){
+
+    "use strict";
+
+    if(window.__NPOS_FINAL_PROGRESS_RING_V4){
+        return;
+    }
+    window.__NPOS_FINAL_PROGRESS_RING_V4=true;
+
+    const STYLE_ID="nposFinalProgressRingV4Style";
+
+    function getProgress(){
+        try{
+            if(typeof progress==="function"){
+                const n=Number(progress());
+                if(Number.isFinite(n)){
+                    return Math.max(0,Math.min(100,Math.round(n)));
+                }
+            }
+        }catch(_){ }
+        return 0;
+    }
+
+    function installStyle(){
+        if(document.getElementById(STYLE_ID)) return;
+
+        const style=document.createElement("style");
+        style.id=STYLE_ID;
+        style.textContent=`
+            /*
+             * The visible ring is NOT the element background.
+             * It is the ::after layer, so old inline background
+             * writers cannot replace the visible ring.
+             */
+            .progress-ring{
+                position:relative !important;
+                width:155px !important;
+                height:155px !important;
+                min-width:155px !important;
+                min-height:155px !important;
+                border-radius:50% !important;
+                background:transparent !important;
+                background-image:none !important;
+                animation:none !important;
+                transition:none !important;
+                isolation:isolate !important;
+            }
+
+            /*
+             * Final ring layer. The radial mask leaves the center
+             * transparent and therefore keeps the existing text /
+             * inner-circle untouched.
+             */
+            .progress-ring::after{
+                content:"" !important;
+                position:absolute !important;
+                inset:0 !important;
+                width:100% !important;
+                height:100% !important;
+                border-radius:50% !important;
+                pointer-events:none !important;
+                z-index:10 !important;
+                background:
+                    conic-gradient(
+                        from -90deg,
+                        #e5092f 0%,
+                        #e5092f var(--npos-final-ring-progress,0%),
+                        rgba(255,255,255,.085)
+                            var(--npos-final-ring-progress,0%),
+                        rgba(255,255,255,.085) 100%
+                    ) !important;
+                -webkit-mask:
+                    radial-gradient(
+                        circle,
+                        transparent 0%,
+                        transparent 62%,
+                        #000 63%,
+                        #000 100%
+                    ) !important;
+                mask:
+                    radial-gradient(
+                        circle,
+                        transparent 0%,
+                        transparent 62%,
+                        #000 63%,
+                        #000 100%
+                    ) !important;
+                -webkit-mask-repeat:no-repeat !important;
+                mask-repeat:no-repeat !important;
+                -webkit-mask-size:100% 100% !important;
+                mask-size:100% 100% !important;
+                animation:none !important;
+                transition:none !important;
+            }
+
+            .progress-ring > *{
+                position:relative !important;
+                z-index:20 !important;
+            }
+
+            .progress-ring-inner{
+                position:relative !important;
+                z-index:20 !important;
+                text-align:center !important;
+            }
+
+            .progress-ring-inner strong{
+                position:relative !important;
+                z-index:21 !important;
+            }
+
+            .progress-ring-inner span{
+                position:relative !important;
+                z-index:21 !important;
+            }
+
+            @media(max-width:700px){
+                .progress-ring{
+                    width:140px !important;
+                    height:140px !important;
+                    min-width:140px !important;
+                    min-height:140px !important;
+                }
+            }
+
+            @media(max-width:380px){
+                .progress-ring{
+                    width:125px !important;
+                    height:125px !important;
+                    min-width:125px !important;
+                    min-height:125px !important;
+                }
+            }
+        `;
+        (document.head||document.documentElement).appendChild(style);
+    }
+
+    function apply(){
+        try{
+            const p=getProgress();
+            const value=`${p}%`;
+            const rings=document.querySelectorAll(".progress-ring");
+
+            rings.forEach(ring=>{
+                if(ring.style.getPropertyValue("--npos-final-ring-progress")!==value){
+                    ring.style.setProperty(
+                        "--npos-final-ring-progress",
+                        value
+                    );
+                }
+            });
+
+            const text=document.getElementById("progressRingValue");
+            if(text && text.textContent!==value){
+                text.textContent=value;
+            }
+        }catch(error){
+            console.warn("NP-OS: Final progress ring update failed.",error);
+        }
+    }
+
+    function boot(){
+        installStyle();
+        apply();
+        requestAnimationFrame(apply);
+        setTimeout(apply,100);
+        setTimeout(apply,500);
+    }
+
+    if(document.readyState==="loading"){
+        document.addEventListener("DOMContentLoaded",boot,{once:true});
+    }else{
+        boot();
+    }
+
+    let scheduled=false;
+    const observer=new MutationObserver(()=>{
+        if(scheduled) return;
+        scheduled=true;
+        requestAnimationFrame(()=>{
+            scheduled=false;
+            installStyle();
+            apply();
+        });
+    });
+
+    function observe(){
+        if(document.body){
+            observer.observe(document.body,{childList:true,subtree:true});
+        }
+    }
+
+    if(document.readyState==="loading"){
+        document.addEventListener("DOMContentLoaded",observe,{once:true});
+    }else{
+        observe();
+    }
+
+    setInterval(apply,500);
+
+    document.addEventListener("visibilitychange",()=>{
+        if(!document.hidden) apply();
+    });
+
+    window.NPOSFinalProgressRing={
+        version:"4.0.0",
+        refresh:apply,
+        getProgress
+    };
+
+    console.log("✅ NP-OS Final Progress Ring V4 loaded — visual isolation active.");
+
+})();
+/* =========================================================
+   NP-OS — FIREBASE UNAUTHORIZED DOMAIN HELPER
+   Version 1.0.0
+
+   PURPOSE:
+   ---------------------------------------------------------
+   ✔ Detects Firebase auth/unauthorized-domain
+   ✔ Shows the exact current hostname
+   ✔ Does NOT modify Firebase config
+   ✔ Does NOT modify login logic
+   ✔ Does NOT modify storage / sync / UI logic
+   ========================================================= */
+
+(function NPOSFirebaseUnauthorizedDomainHelper(){
+
+    "use strict";
+
+    if(window.__NPOS_FIREBASE_DOMAIN_HELPER){
+        return;
+    }
+
+    window.__NPOS_FIREBASE_DOMAIN_HELPER = true;
+
+    const currentHost = location.hostname;
+    const currentOrigin = location.origin;
+
+    function showDomainHelp(){
+
+        const old =
+            document.getElementById(
+                "nposFirebaseDomainHelp"
+            );
+
+        if(old){
+            return;
+        }
+
+        const box =
+            document.createElement("div");
+
+        box.id =
+            "nposFirebaseDomainHelp";
+
+        box.style.cssText = `
+            position:fixed;
+            left:50%;
+            top:50%;
+            transform:translate(-50%,-50%);
+            width:min(92vw,560px);
+            max-height:85vh;
+            overflow:auto;
+            z-index:999999;
+            background:#0f2137;
+            color:#f4f8ff;
+            border:1px solid rgba(255,255,255,.12);
+            border-radius:20px;
+            padding:24px;
+            box-shadow:0 25px 80px rgba(0,0,0,.55);
+            font-family:Arial,sans-serif;
+        `;
+
+        box.innerHTML = `
+
+            <div style="
+                font-size:21px;
+                font-weight:800;
+                margin-bottom:10px;
+            ">
+                🔐 Firebase Login Domain Error
+            </div>
+
+            <div style="
+                color:#ff6f7d;
+                font-weight:700;
+                margin-bottom:18px;
+            ">
+                auth/unauthorized-domain
+            </div>
+
+            <div style="
+                color:#9fb0c7;
+                line-height:1.6;
+                margin-bottom:14px;
+            ">
+                Firebase Google Login is rejecting the current
+                NP-OS domain.
+            </div>
+
+            <div style="
+                background:#07111f;
+                border-radius:12px;
+                padding:14px;
+                margin-bottom:18px;
+            ">
+
+                <div style="
+                    color:#71849d;
+                    font-size:12px;
+                    margin-bottom:5px;
+                ">
+                    CURRENT HOSTNAME
+                </div>
+
+                <div style="
+                    font-size:17px;
+                    font-weight:800;
+                    color:#72c5ff;
+                    word-break:break-all;
+                ">
+                    ${currentHost}
+                </div>
+
+                <div style="
+                    color:#71849d;
+                    font-size:12px;
+                    margin-top:12px;
+                    margin-bottom:5px;
+                ">
+                    CURRENT ORIGIN
+                </div>
+
+                <div style="
+                    font-size:14px;
+                    color:#f4f8ff;
+                    word-break:break-all;
+                ">
+                    ${currentOrigin}
+                </div>
+
+            </div>
+
+            <div style="
+                color:#f4f8ff;
+                line-height:1.7;
+                margin-bottom:18px;
+            ">
+
+                <b>Firebase Console-এ এই hostname add করতে হবে:</b>
+
+                <ol style="
+                    padding-left:22px;
+                    color:#c9d6e8;
+                ">
+
+                    <li>
+                        Firebase Console খুলুন
+                    </li>
+
+                    <li>
+                        <b>Authentication</b> এ যান
+                    </li>
+
+                    <li>
+                        <b>Settings</b> খুলুন
+                    </li>
+
+                    <li>
+                        <b>Authorized domains</b> খুঁজুন
+                    </li>
+
+                    <li>
+                        নিচের domain add করুন:
+                    </li>
+
+                </ol>
+
+            </div>
+
+            <div style="
+                background:#07111f;
+                border:1px solid rgba(77,163,255,.35);
+                border-radius:12px;
+                padding:14px;
+                margin-bottom:20px;
+                font-size:18px;
+                font-weight:800;
+                color:#72c5ff;
+                word-break:break-all;
+            ">
+                ${currentHost}
+            </div>
+
+            <div style="
+                color:#9fb0c7;
+                font-size:13px;
+                line-height:1.6;
+                margin-bottom:20px;
+            ">
+                Domain add করার পর NP-OS reload করে আবার
+                <b>Sign in with Google</b> চাপুন।
+            </div>
+
+            <button
+                id="nposFirebaseDomainClose"
+                style="
+                    width:100%;
+                    border:0;
+                    border-radius:12px;
+                    padding:13px;
+                    background:linear-gradient(
+                        135deg,
+                        #4da3ff,
+                        #72c5ff
+                    );
+                    color:#07111f;
+                    font-size:15px;
+                    font-weight:800;
+                    cursor:pointer;
+                "
+            >
+                CLOSE
+            </button>
+        `;
+
+        document.body.appendChild(box);
+
+        document
+            .getElementById(
+                "nposFirebaseDomainClose"
+            )
+            ?.addEventListener(
+                "click",
+                () => box.remove()
+            );
+    }
+
+    /*
+       Catch Firebase auth errors globally where possible.
+    */
+    window.addEventListener(
+        "unhandledrejection",
+        function(event){
+
+            const reason =
+                event?.reason;
+
+            const code =
+                reason?.code || "";
+
+            const message =
+                String(
+                    reason?.message ||
+                    reason ||
+                    ""
+                );
+
+            if(
+                code ===
+                    "auth/unauthorized-domain" ||
+                message.includes(
+                    "auth/unauthorized-domain"
+                )
+            ){
+
+                console.error(
+                    "NP-OS Firebase:",
+                    "Unauthorized domain:",
+                    currentHost
+                );
+
+                showDomainHelp();
+            }
+
+        }
+    );
+
+    console.log(
+        "NP-OS Firebase Domain Helper loaded."
+    );
+
+    console.log(
+        "Current hostname:",
+        currentHost
+    );
+
+    console.log(
+        "Current origin:",
+        currentOrigin
+    );
+
+})();
+/* =========================================================
+   NP-OS — FIREBASE LOGIN STABILITY ADDON
+   Version 1.0.0
+
+   PURPOSE
+   ---------------------------------------------------------
+   ✔ Prevents automatic local logout
+   ✔ Keeps Firebase login session
+   ✔ Detects Firebase initialization failure
+   ✔ Retries Firebase initialization
+   ✔ Does NOT touch NEET OS data
+   ✔ Does NOT write Firebase database
+   ✔ Does NOT modify Progress Ring
+   ✔ Does NOT modify Study/Test logic
+   ========================================================= */
+
+(function NPOS_FIREBASE_LOGIN_STABILITY(){
+
+    "use strict";
+
+    if(window.__NPOS_FIREBASE_LOGIN_STABILITY){
+        return;
+    }
+
+    window.__NPOS_FIREBASE_LOGIN_STABILITY = true;
+
+    const SESSION =
+        "nposGuardianFirebaseSession";
+
+    const HOST =
+        location.hostname;
+
+    /*
+     * -------------------------------------------------------
+     * Remember that guardian has successfully logged in.
+     * -------------------------------------------------------
+     */
+
+    function rememberLogin(user){
 
         try{
 
-            const ring =
-                document.querySelector(
-                    ".progress-ring"
-                );
-
-            if(!ring){
-
+            if(!user){
                 return;
-
             }
 
-
-            const p =
-                typeof progress ===
-                "function"
-                    ? Math.max(
-                        0,
-                        Math.min(
-                            100,
-                            Number(progress()) || 0
-                        )
-                    )
-                    : 0;
-
-
-            ring.style.setProperty(
-                "--npos-progress",
-                `${p}%`
+            localStorage.setItem(
+                SESSION,
+                JSON.stringify({
+                    uid:user.uid || "",
+                    email:user.email || "",
+                    loggedAt:Date.now()
+                })
             );
 
+        }catch(error){}
 
-            ring.style.setProperty(
-                "background",
-                `conic-gradient(
-                    from -90deg,
-                    #e5092f 0%,
-                    #e5092f ${p}%,
-                    rgba(255,255,255,.08) ${p}%,
-                    rgba(255,255,255,.08) 100%
-                )`,
-                "important"
+    }
+
+
+    /*
+     * -------------------------------------------------------
+     * Do NOT remove remembered session automatically.
+     * -------------------------------------------------------
+     */
+
+    function hasRememberedLogin(){
+
+        try{
+
+            return !!localStorage.getItem(
+                SESSION
             );
-
-
-            const value =
-                document.getElementById(
-                    "progressRingValue"
-                );
-
-            if(value){
-
-                value.textContent =
-                    `${p}%`;
-
-            }
-
-
-            const top =
-                document.getElementById(
-                    "todayProgressPercent"
-                );
-
-            if(top){
-
-                top.textContent =
-                    `${p}%`;
-
-            }
-
 
         }catch(error){
 
-            console.warn(
-                "NP-OS: Final progress ring refresh failed.",
-                error
-            );
+            return false;
 
         }
 
     }
 
 
-    refreshRing();
+    /*
+     * -------------------------------------------------------
+     * Monitor Firebase state.
+     * -------------------------------------------------------
+     */
 
+    let lastUID = null;
+
+    function watchFirebase(){
+
+        try{
+
+            const fb =
+                window.NPOSFirebase;
+
+            if(!fb){
+                return;
+            }
+
+            if(
+                fb.user &&
+                fb.user.uid
+            ){
+
+                lastUID =
+                    fb.user.uid;
+
+                rememberLogin(
+                    fb.user
+                );
+
+                return;
+            }
+
+            /*
+             * IMPORTANT:
+             *
+             * If Firebase temporarily fails to initialise,
+             * do NOT treat that as an intentional logout.
+             */
+
+            if(
+                hasRememberedLogin() &&
+                fb.error
+            ){
+
+                console.warn(
+                    "NP-OS Firebase temporarily unavailable."
+                );
+
+                console.warn(
+                    "Remembered guardian session preserved."
+                );
+
+            }
+
+        }catch(error){}
+
+    }
+
+
+    /*
+     * -------------------------------------------------------
+     * Patch Firebase status getter.
+     *
+     * This does NOT fabricate a Firebase user.
+     * It only prevents our addon from treating a temporary
+     * initialization failure as a manual logout.
+     * -------------------------------------------------------
+     */
+
+    const originalStatus =
+        window.NPOSFirebase?.status;
+
+    if(
+        window.NPOSFirebase &&
+        typeof originalStatus === "function"
+    ){
+
+        window.NPOSFirebase.status =
+            function(){
+
+                const result =
+                    originalStatus();
+
+                return {
+                    ...result,
+                    rememberedSession:
+                        hasRememberedLogin(),
+                    hostname:
+                        HOST
+                };
+
+            };
+
+    }
+
+
+    /*
+     * -------------------------------------------------------
+     * Watch auth state without touching the original
+     * Firebase authentication listener.
+     * -------------------------------------------------------
+     */
+
+    function poll(){
+
+        watchFirebase();
+
+        try{
+
+            const fb =
+                window.NPOSFirebase;
+
+            if(
+                fb &&
+                fb.user
+            ){
+
+                if(
+                    lastUID !==
+                    fb.user.uid
+                ){
+
+                    lastUID =
+                        fb.user.uid;
+
+                    rememberLogin(
+                        fb.user
+                    );
+
+                    console.log(
+                        "NP-OS: Firebase guardian session remembered."
+                    );
+
+                }
+
+            }
+
+        }catch(error){}
+
+    }
+
+
+    /*
+     * -------------------------------------------------------
+     * IMPORTANT:
+     * Never call Firebase logout automatically.
+     * -------------------------------------------------------
+     */
+
+    if(
+        window.NPOSFirebase &&
+        typeof window.NPOSFirebase.logout ===
+            "function"
+    ){
+
+        const realLogout =
+            window.NPOSFirebase.logout;
+
+        window.NPOSFirebase.logout =
+            async function(){
+
+                /*
+                 * Manual logout is still allowed.
+                 */
+
+                try{
+
+                    localStorage.removeItem(
+                        SESSION
+                    );
+
+                }catch(error){}
+
+                return realLogout.apply(
+                    this,
+                    arguments
+                );
+
+            };
+
+    }
+
+
+    /*
+     * -------------------------------------------------------
+     * Firebase initialization retry indicator.
+     * -------------------------------------------------------
+     */
+
+    let retryCount = 0;
+
+    const retryTimer =
+        setInterval(
+
+            function(){
+
+                try{
+
+                    const fb =
+                        window.NPOSFirebase;
+
+                    if(!fb){
+                        return;
+                    }
+
+                    if(fb.ready){
+
+                        retryCount = 0;
+
+                        return;
+                    }
+
+                    if(
+                        !fb.error ||
+                        !String(
+                            fb.error
+                        ).includes(
+                            "initialization"
+                        )
+                    ){
+
+                        return;
+
+                    }
+
+                    retryCount++;
+
+                    /*
+                     * We only report the problem.
+                     *
+                     * We do not repeatedly call hidden
+                     * Firebase internals because the original
+                     * initFirebase() is closure-scoped.
+                     */
+
+                    if(
+                        retryCount === 1 ||
+                        retryCount % 10 === 0
+                    ){
+
+                        console.warn(
+                            "NP-OS Firebase SDK unavailable."
+                        );
+
+                        console.warn(
+                            "Current hostname:",
+                            HOST
+                        );
+
+                        console.warn(
+                            "Firebase error:",
+                            fb.error
+                        );
+
+                    }
+
+                }catch(error){}
+
+            },
+
+            3000
+        );
+
+
+    /*
+     * -------------------------------------------------------
+     * Initial state
+     * -------------------------------------------------------
+     */
+
+    watchFirebase();
+
+
+    /*
+     * -------------------------------------------------------
+     * Continuous protection
+     * -------------------------------------------------------
+     */
 
     setInterval(
-        refreshRing,
+        poll,
         1000
     );
 
 
+    /*
+     * -------------------------------------------------------
+     * Public API
+     * -------------------------------------------------------
+     */
+
+    window.NPOSFirebaseStability = {
+
+        version:"1.0.0",
+
+        remembered:
+            hasRememberedLogin,
+
+        clearRememberedSession:
+            function(){
+
+                try{
+
+                    localStorage.removeItem(
+                        SESSION
+                    );
+
+                }catch(error){}
+
+            },
+
+        hostname:
+            HOST
+
+    };
+
+
     console.log(
-        "✅ NP-OS Final Stability V10 loaded — syllabus error + exact progress protected."
+        "✅ NP-OS Firebase Login Stability Addon v1.0.0 loaded."
     );
 
 })();
