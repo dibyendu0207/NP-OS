@@ -7502,3 +7502,6148 @@ if(
     );
 
 })();
+/* =========================================================
+   NP-OS — FINAL GUARDIAN UI + STUDY ANALYTICS
+   Version 5.0.0
+
+   SAFE APPEND-ONLY ADDON
+
+   ✓ Red premium UI
+   ✓ Self Study details
+   ✓ Daily Repair details
+   ✓ Actual Test elapsed time
+   ✓ Test analysis
+   ✓ Physics / Chemistry / Botany / Zoology analytics
+   ✓ Session + chapter + question tracking
+   ✓ Firebase read-only compatible
+   ✓ No Firebase write
+   ✓ No data modification
+   ✓ No MutationObserver
+   ✓ No navigation replacement
+   ✓ No core function replacement
+   ✓ Responsive desktop / laptop / mobile
+========================================================= */
+
+(function NPOS_FINAL_GUARDIAN_UI(){
+
+    "use strict";
+
+    const VERSION = "5.0.0";
+
+    /* -----------------------------------------------------
+       Prevent duplicate installation
+    ----------------------------------------------------- */
+
+    if(window.__NPOS_FINAL_GUARDIAN_UI_V5){
+        try{
+            window.__NPOS_FINAL_GUARDIAN_UI_V5.refresh?.();
+        }catch(_){}
+        return;
+    }
+
+    window.__NPOS_FINAL_GUARDIAN_UI_V5 = {
+        version: VERSION
+    };
+
+
+    /* =====================================================
+       HELPERS
+    ===================================================== */
+
+    const $ = id =>
+        document.getElementById(id);
+
+    const esc = value =>
+        String(value ?? "")
+            .replace(
+                /[&<>"']/g,
+                c => ({
+                    "&":"&amp;",
+                    "<":"&lt;",
+                    ">":"&gt;",
+                    '"':"&quot;",
+                    "'":"&#39;"
+                }[c])
+            );
+
+    const num = value => {
+        const n = Number(value);
+        return Number.isFinite(n) ? n : 0;
+    };
+
+    const arr = value =>
+        Array.isArray(value) ? value : [];
+
+    function student(){
+
+        try{
+
+            if(
+                typeof cur === "function"
+            ){
+                return cur() || {};
+            }
+
+        }catch(error){
+
+            console.warn(
+                "NP-OS Final UI: student data error",
+                error
+            );
+
+        }
+
+        return {};
+    }
+
+
+    /* =====================================================
+       DURATION
+    ===================================================== */
+
+    function duration(seconds){
+
+        seconds =
+            Math.max(
+                0,
+                Math.floor(num(seconds))
+            );
+
+        const h =
+            Math.floor(seconds / 3600);
+
+        const m =
+            Math.floor(
+                (seconds % 3600) / 60
+            );
+
+        const s =
+            seconds % 60;
+
+        return (
+            String(h).padStart(2,"0") +
+            ":" +
+            String(m).padStart(2,"0") +
+            ":" +
+            String(s).padStart(2,"0")
+        );
+    }
+
+
+    function shortDuration(seconds){
+
+        seconds =
+            Math.max(
+                0,
+                Math.floor(num(seconds))
+            );
+
+        const h =
+            Math.floor(seconds / 3600);
+
+        const m =
+            Math.floor(
+                (seconds % 3600) / 60
+            );
+
+        if(h){
+            return `${h}h ${String(m).padStart(2,"0")}m`;
+        }
+
+        return `${m}m`;
+    }
+
+
+    /* =====================================================
+       TEST DATA
+    ===================================================== */
+
+    function getTests(){
+
+        const d = student();
+
+        if(
+            Array.isArray(
+                d.testRecords
+            )
+        ){
+            return d.testRecords;
+        }
+
+        if(
+            d.tests &&
+            Array.isArray(
+                d.tests.testRecords
+            )
+        ){
+            return d.tests.testRecords;
+        }
+
+        return [];
+    }
+
+
+    function getActiveTest(){
+
+        const d = student();
+
+        if(
+            d.activeTest &&
+            typeof d.activeTest === "object"
+        ){
+            return d.activeTest;
+        }
+
+        if(
+            d.tests &&
+            d.tests.activeTest
+        ){
+            return d.tests.activeTest;
+        }
+
+        return null;
+    }
+
+
+    /* =====================================================
+       ACTUAL TEST TIME
+
+       IMPORTANT:
+       Uses startedAt → completedAt.
+       Does NOT use totalTime / allotted duration.
+    ===================================================== */
+
+    function testElapsed(test){
+
+        if(!test){
+            return 0;
+        }
+
+        const start =
+            num(test.startedAt);
+
+        const end =
+            num(
+                test.completedAt ||
+                Date.now()
+            );
+
+        if(
+            start > 0 &&
+            end >= start
+        ){
+            return Math.floor(
+                (end - start) / 1000
+            );
+        }
+
+        return 0;
+    }
+
+
+    function totalTestTime(){
+
+        return getTests()
+            .reduce(
+                (sum,test) =>
+                    sum + testElapsed(test),
+                0
+            );
+    }
+
+
+    function activeTestElapsed(){
+
+        const test =
+            getActiveTest();
+
+        if(!test){
+            return 0;
+        }
+
+        const start =
+            num(test.startedAt);
+
+        if(!start){
+            return 0;
+        }
+
+        return Math.max(
+            0,
+            Math.floor(
+                (Date.now() - start) / 1000
+            )
+        );
+    }
+
+
+    /* =====================================================
+       TEST SCORE
+    ===================================================== */
+
+    function testPercentage(test){
+
+        if(
+            test?.percentage !== null &&
+            test?.percentage !== undefined
+        ){
+
+            const p =
+                num(test.percentage);
+
+            if(
+                Number.isFinite(p)
+            ){
+                return p;
+            }
+        }
+
+        const score =
+            num(test?.score);
+
+        const marks =
+            num(test?.fullMarks);
+
+        if(marks > 0){
+            return (
+                score /
+                marks *
+                100
+            );
+        }
+
+        return null;
+    }
+
+
+    function isScored(test){
+
+        return (
+            test?.score !== null &&
+            test?.score !== undefined &&
+            Number.isFinite(
+                Number(test.score)
+            )
+        );
+    }
+
+
+    /* =====================================================
+       STUDY SESSION DATA
+    ===================================================== */
+
+    function getStudySessions(){
+
+        const d = student();
+
+        let sessions = [];
+
+        /*
+         * Unified analytics from NEET OS
+         */
+
+        if(
+            Array.isArray(
+                d.unifiedStudySessions
+            )
+        ){
+            sessions =
+                sessions.concat(
+                    d.unifiedStudySessions
+                );
+        }
+
+
+        /*
+         * Self Study / Daily Repair
+         */
+
+        if(
+            Array.isArray(
+                d.addonSessions
+            )
+        ){
+            sessions =
+                sessions.concat(
+                    d.addonSessions
+                );
+        }
+
+
+        return sessions;
+    }
+
+
+    /* =====================================================
+       BIOLOGY CLASSIFICATION
+    ===================================================== */
+
+    function biologyGroup(chapter){
+
+        const c =
+            String(chapter || "")
+                .trim();
+
+        if(!c){
+            return "Botany";
+        }
+
+        const botany =
+            arr(
+                S?.syllabus?.Botany
+            );
+
+        const zoology =
+            arr(
+                S?.syllabus?.Zoology
+            );
+
+        if(
+            botany.includes(c)
+        ){
+            return "Botany";
+        }
+
+        if(
+            zoology.includes(c)
+        ){
+            return "Zoology";
+        }
+
+
+        /*
+         * Fallback for saved NEET OS
+         * data which may already contain
+         * Botany / Zoology.
+         */
+
+        if(
+            /zoology/i.test(
+                String(chapter)
+            )
+        ){
+            return "Zoology";
+        }
+
+        return "Botany";
+    }
+
+
+    function normalizeSubject(
+        subject,
+        chapter
+    ){
+
+        const s =
+            String(subject || "")
+                .trim();
+
+        if(
+            /^physics$/i.test(s)
+        ){
+            return "Physics";
+        }
+
+        if(
+            /^chemistry$/i.test(s)
+        ){
+            return "Chemistry";
+        }
+
+        if(
+            /^botany$/i.test(s)
+        ){
+            return "Botany";
+        }
+
+        if(
+            /^zoology$/i.test(s)
+        ){
+            return "Zoology";
+        }
+
+        if(
+            /^biology$/i.test(s)
+        ){
+            return biologyGroup(chapter);
+        }
+
+        return null;
+    }
+
+
+    /* =====================================================
+       TODAY STUDY DAY
+    ===================================================== */
+
+    function todayStudyKey(){
+
+        try{
+
+            if(
+                typeof studyKey ===
+                "function"
+            ){
+                return studyKey();
+            }
+
+        }catch(_){}
+
+        const d =
+            new Date();
+
+        if(
+            d.getHours() < 3
+        ){
+            d.setDate(
+                d.getDate() - 1
+            );
+        }
+
+        return (
+            d.getFullYear() +
+            "-" +
+            String(
+                d.getMonth()+1
+            ).padStart(2,"0") +
+            "-" +
+            String(
+                d.getDate()
+            ).padStart(2,"0")
+        );
+    }
+
+
+    function todaySessions(){
+
+        const today =
+            todayStudyKey();
+
+        return getStudySessions()
+            .filter(
+                s =>
+                    !s.date ||
+                    s.date === today
+            );
+    }
+
+
+    /* =====================================================
+       SESSION AGGREGATION
+    ===================================================== */
+
+    function buildAnalytics(){
+
+        const result = {
+
+            Physics:{
+                time:0,
+                questions:0,
+                sessions:0,
+                chapters:new Map()
+            },
+
+            Chemistry:{
+                time:0,
+                questions:0,
+                sessions:0,
+                chapters:new Map()
+            },
+
+            Botany:{
+                time:0,
+                questions:0,
+                sessions:0,
+                chapters:new Map()
+            },
+
+            Zoology:{
+                time:0,
+                questions:0,
+                sessions:0,
+                chapters:new Map()
+            }
+
+        };
+
+
+        todaySessions()
+            .forEach(
+                session => {
+
+                    const chapter =
+                        session.chapter ||
+                        session.addonChapter ||
+                        "Chapter not specified";
+
+                    const subject =
+                        normalizeSubject(
+                            session.subject ||
+                            session.addonSubject,
+                            chapter
+                        );
+
+                    if(
+                        !subject ||
+                        !result[subject]
+                    ){
+                        return;
+                    }
+
+
+                    let seconds =
+                        num(
+                            session.seconds ||
+                            session.studySeconds ||
+                            session.duration
+                        );
+
+
+                    /*
+                     * If session has exact
+                     * start/end but no seconds.
+                     */
+
+                    if(
+                        seconds <= 0 &&
+                        num(session.startedAt) &&
+                        num(session.stoppedAt)
+                    ){
+
+                        seconds =
+                            Math.max(
+                                0,
+                                Math.floor(
+                                    (
+                                        num(session.stoppedAt) -
+                                        num(session.startedAt)
+                                    ) / 1000
+                                )
+                            );
+                    }
+
+
+                    const questions =
+                        num(
+                            session.questions ||
+                            session.questionCount
+                        );
+
+
+                    result[subject].time +=
+                        seconds;
+
+                    result[subject].questions +=
+                        questions;
+
+                    result[subject].sessions++;
+
+
+                    const key =
+                        chapter;
+
+
+                    if(
+                        !result[subject]
+                            .chapters
+                            .has(key)
+                    ){
+
+                        result[subject]
+                            .chapters
+                            .set(
+                                key,
+                                {
+                                    time:0,
+                                    questions:0,
+                                    sessions:0
+                                }
+                            );
+
+                    }
+
+
+                    const row =
+                        result[subject]
+                            .chapters
+                            .get(key);
+
+                    row.time += seconds;
+
+                    row.questions +=
+                        questions;
+
+                    row.sessions++;
+
+                }
+            );
+
+
+        return result;
+    }
+
+
+    /* =====================================================
+       LIVE SESSION
+    ===================================================== */
+
+    function liveStudyData(){
+
+        const d =
+            student();
+
+        const index =
+            Number.isInteger(
+                d.activeTask
+            )
+                ? d.activeTask
+                : null;
+
+        if(
+            index === null ||
+            !TASKS?.[index]
+        ){
+            return null;
+        }
+
+        const task =
+            TASKS[index];
+
+        const meta =
+            d.taskMeta?.[index] || {};
+
+
+        const activity =
+            meta.addonActivity ||
+            (
+                task.type === "repair"
+                    ? "Daily Repair"
+                    : task.type === "self-study"
+                        ? "Self Study"
+                        : "Scheduled Study"
+            );
+
+
+        const subject =
+            meta.addonSubject ||
+            task.subject ||
+            "—";
+
+
+        const chapter =
+            meta.addonChapter ||
+            meta.chapter ||
+            "Chapter not specified";
+
+
+        let elapsed =
+            num(
+                d.studySeconds?.[index]
+            );
+
+
+        if(
+            d.activeStartTime
+        ){
+
+            elapsed +=
+                Math.max(
+                    0,
+                    Math.floor(
+                        (
+                            Date.now() -
+                            num(
+                                d.activeStartTime
+                            )
+                        ) / 1000
+                    )
+                );
+
+        }
+
+
+        return {
+            taskName:
+                task.name ||
+                "Study Session",
+
+            activity,
+
+            subject,
+
+            chapter,
+
+            elapsed
+        };
+    }
+
+
+    /* =====================================================
+       LIVE CARD VISUAL
+    ===================================================== */
+
+    function liveState(){
+
+        const activeTest =
+            getActiveTest();
+
+        const study =
+            liveStudyData();
+
+
+        if(activeTest){
+
+            const remaining =
+                Math.max(
+                    0,
+                    num(activeTest.endAt) -
+                    Date.now()
+                );
+
+
+            return {
+
+                type:"test",
+
+                title:"TEST RUNNING",
+
+                name:
+                    activeTest.authority ||
+                    "Self Test",
+
+                subject:
+                    activeTest.authority ||
+                    "Test",
+
+                chapter:
+                    arr(activeTest.subjects)
+                        .map(
+                            x =>
+                                `${x.subject || ""} — ${x.chapter || ""}`
+                        )
+                        .join(" | ") ||
+                    "Test in progress",
+
+                timer:
+                    duration(
+                        Math.ceil(
+                            remaining / 1000
+                        )
+                    )
+
+            };
+        }
+
+
+        if(study){
+
+            return {
+
+                type:"study",
+
+                title:"STUDYING NOW",
+
+                name:
+                    study.taskName,
+
+                activity:
+                    study.activity,
+
+                subject:
+                    study.subject,
+
+                chapter:
+                    study.chapter,
+
+                timer:
+                    duration(
+                        study.elapsed
+                    )
+
+            };
+        }
+
+
+        return null;
+    }
+
+
+    /* =====================================================
+       LIVE HERO
+    ===================================================== */
+
+    function ensureLiveHero(){
+
+        let box =
+            $("nposFinalLiveHero");
+
+        if(box){
+            return box;
+        }
+
+
+        const liveCard =
+            $("liveTaskName")
+                ?.closest(
+                    ".card"
+                );
+
+
+        const anchor =
+            liveCard ||
+            $("liveTaskName")
+                ?.parentElement;
+
+
+        if(!anchor){
+            return null;
+        }
+
+
+        box =
+            document.createElement(
+                "section"
+            );
+
+        box.id =
+            "nposFinalLiveHero";
+
+        box.className =
+            "npos-final-live-hero";
+
+
+        box.innerHTML = `
+
+            <div class="npos-live-top">
+
+                <div>
+
+                    <div
+                        class="npos-live-kicker"
+                    >
+                        LIVE STUDENT ACTIVITY
+                    </div>
+
+                    <div
+                        id="nposLiveHeroTitle"
+                        class="npos-live-title"
+                    >
+                        Checking...
+                    </div>
+
+                    <div
+                        id="nposLiveHeroActivity"
+                        class="npos-live-activity"
+                    >
+                        —
+                    </div>
+
+                </div>
+
+
+                <div
+                    id="nposLiveHeroDot"
+                    class="npos-live-dot"
+                ></div>
+
+            </div>
+
+
+            <div class="npos-live-grid">
+
+                <div class="npos-live-item">
+
+                    <span>SUBJECT</span>
+
+                    <strong
+                        id="nposLiveHeroSubject"
+                    >
+                        —
+                    </strong>
+
+                </div>
+
+
+                <div class="npos-live-item">
+
+                    <span>CHAPTER</span>
+
+                    <strong
+                        id="nposLiveHeroChapter"
+                    >
+                        —
+                    </strong>
+
+                </div>
+
+
+                <div class="npos-live-item">
+
+                    <span>ELAPSED / TIME LEFT</span>
+
+                    <strong
+                        id="nposLiveHeroTimer"
+                    >
+                        00:00:00
+                    </strong>
+
+                </div>
+
+            </div>
+
+        `;
+
+
+        anchor.parentNode?.insertBefore(
+            box,
+            anchor
+        );
+
+
+        return box;
+    }
+
+
+    function updateLiveHero(){
+
+        const box =
+            ensureLiveHero();
+
+        if(!box){
+            return;
+        }
+
+
+        const state =
+            liveState();
+
+
+        const title =
+            $("nposLiveHeroTitle");
+
+        const activity =
+            $("nposLiveHeroActivity");
+
+        const subject =
+            $("nposLiveHeroSubject");
+
+        const chapter =
+            $("nposLiveHeroChapter");
+
+        const timer =
+            $("nposLiveHeroTimer");
+
+        const dot =
+            $("nposLiveHeroDot");
+
+
+        if(!state){
+
+            if(title)
+                title.textContent =
+                    "No active session";
+
+            if(activity)
+                activity.textContent =
+                    "Student is currently not studying";
+
+            if(subject)
+                subject.textContent =
+                    "—";
+
+            if(chapter)
+                chapter.textContent =
+                    "—";
+
+            if(timer)
+                timer.textContent =
+                    "00:00:00";
+
+            dot?.classList.remove(
+                "active"
+            );
+
+            return;
+        }
+
+
+        if(title){
+
+            title.textContent =
+                state.type === "test"
+                    ? "Test Running"
+                    : state.name;
+
+        }
+
+
+        if(activity){
+
+            activity.textContent =
+                state.type === "test"
+                    ? "📝 " + state.name
+                    : state.activity;
+
+        }
+
+
+        if(subject)
+            subject.textContent =
+                state.subject;
+
+
+        if(chapter)
+            chapter.textContent =
+                state.chapter;
+
+
+        if(timer)
+            timer.textContent =
+                state.timer;
+
+
+        dot?.classList.add(
+            "active"
+        );
+    }
+
+
+    /* =====================================================
+       PREMIUM ANALYTICS PANEL
+    ===================================================== */
+
+    function ensureAnalyticsPanel(){
+
+        const statsPage =
+            $("statsPage");
+
+        if(!statsPage){
+            return null;
+        }
+
+
+        let panel =
+            $("nposFinalGuardianAnalytics");
+
+        if(panel){
+            return panel;
+        }
+
+
+        panel =
+            document.createElement(
+                "section"
+            );
+
+        panel.id =
+            "nposFinalGuardianAnalytics";
+
+        panel.className =
+            "npos-final-analytics";
+
+
+        /*
+         * Insert near top of Stats.
+         */
+
+        statsPage.insertBefore(
+            panel,
+            statsPage.firstElementChild
+        );
+
+
+        return panel;
+    }
+
+
+    function renderAnalytics(){
+
+        const panel =
+            ensureAnalyticsPanel();
+
+        if(!panel){
+            return;
+        }
+
+
+        const data =
+            buildAnalytics();
+
+
+        const totalStudy =
+            Object.values(data)
+                .reduce(
+                    (a,x) =>
+                        a + x.time,
+                    0
+                );
+
+
+        const totalQuestions =
+            Object.values(data)
+                .reduce(
+                    (a,x) =>
+                        a + x.questions,
+                    0
+                );
+
+
+        const tests =
+            getTests();
+
+
+        const scored =
+            tests.filter(
+                isScored
+            ).length;
+
+
+        const testTime =
+            totalTestTime();
+
+
+        const activeTest =
+            getActiveTest();
+
+
+        const totalLearningTime =
+            totalStudy +
+            testTime +
+            activeTestElapsed();
+
+
+        panel.innerHTML = `
+
+            <div class="npos-analytics-head">
+
+                <div>
+
+                    <div class="npos-analytics-kicker">
+                        NEET PROGRESS OS
+                    </div>
+
+                    <h2>
+                        Guardian Analytics
+                    </h2>
+
+                    <p>
+                        Live study, chapter and test performance
+                    </p>
+
+                </div>
+
+
+                <div class="npos-live-badge">
+                    ● LIVE
+                </div>
+
+            </div>
+
+
+            <div class="npos-overview-grid">
+
+                <div class="npos-overview-card">
+
+                    <span>
+                        STUDY TIME
+                    </span>
+
+                    <strong>
+                        ${shortDuration(totalStudy)}
+                    </strong>
+
+                </div>
+
+
+                <div class="npos-overview-card">
+
+                    <span>
+                        TEST TIME
+                    </span>
+
+                    <strong>
+                        ${shortDuration(
+                            testTime +
+                            activeTestElapsed()
+                        )}
+                    </strong>
+
+                </div>
+
+
+                <div class="npos-overview-card">
+
+                    <span>
+                        TOTAL LEARNING
+                    </span>
+
+                    <strong>
+                        ${shortDuration(
+                            totalLearningTime
+                        )}
+                    </strong>
+
+                </div>
+
+
+                <div class="npos-overview-card">
+
+                    <span>
+                        TESTS
+                    </span>
+
+                    <strong>
+                        ${tests.length}
+                    </strong>
+
+                </div>
+
+
+                <div class="npos-overview-card">
+
+                    <span>
+                        TESTS SCORED
+                    </span>
+
+                    <strong>
+                        ${scored}
+                    </strong>
+
+                </div>
+
+
+                <div class="npos-overview-card">
+
+                    <span>
+                        STUDY QUESTIONS
+                    </span>
+
+                    <strong>
+                        ${totalQuestions}
+                    </strong>
+
+                </div>
+
+            </div>
+
+
+            <div class="npos-section-heading">
+
+                <div>
+                    Subject-wise Study
+                </div>
+
+                <small>
+                    Today's recorded sessions
+                </small>
+
+            </div>
+
+
+            <div class="npos-subject-grid">
+
+                ${renderSubject(
+                    "Physics",
+                    data.Physics
+                )}
+
+                ${renderSubject(
+                    "Chemistry",
+                    data.Chemistry
+                )}
+
+                ${renderSubject(
+                    "Botany",
+                    data.Botany
+                )}
+
+                ${renderSubject(
+                    "Zoology",
+                    data.Zoology
+                )}
+
+            </div>
+
+
+            <div class="npos-section-heading">
+
+                <div>
+                    Test Performance
+                </div>
+
+                <small>
+                    Actual test duration + score
+                </small>
+
+            </div>
+
+
+            ${renderTestSummary(
+                tests
+            )}
+
+
+            <div class="npos-section-heading">
+
+                <div>
+                    Recent Study Sessions
+                </div>
+
+                <small>
+                    Activity • Subject • Chapter • Time
+                </small>
+
+            </div>
+
+
+            ${renderRecentSessions()}
+
+        `;
+
+    }
+
+
+    /* =====================================================
+       SUBJECT CARD
+    ===================================================== */
+
+    function renderSubject(
+        name,
+        item
+    ){
+
+        const chapters =
+            Array.from(
+                item.chapters.entries()
+            )
+            .sort(
+                (a,b) =>
+                    b[1].time -
+                    a[1].time
+            )
+            .slice(
+                0,
+                5
+            );
+
+
+        const percent =
+            totalSubjectPercent(
+                item.time,
+                buildAnalytics()
+            );
+
+
+        return `
+
+            <article
+                class="npos-subject-card"
+            >
+
+                <div class="npos-subject-top">
+
+                    <div>
+
+                        <div class="npos-subject-name">
+                            ${esc(name)}
+                        </div>
+
+                        <div class="npos-subject-meta">
+                            ${item.sessions} sessions
+                        </div>
+
+                    </div>
+
+                    <div class="npos-subject-time">
+                        ${shortDuration(item.time)}
+                    </div>
+
+                </div>
+
+
+                <div class="npos-progress-track">
+
+                    <div
+                        class="npos-progress-fill"
+                        style="width:${percent}%"
+                    ></div>
+
+                </div>
+
+
+                <div class="npos-subject-stats">
+
+                    <span>
+                        ⏱ ${shortDuration(item.time)}
+                    </span>
+
+                    <span>
+                        ❓ ${item.questions} Q
+                    </span>
+
+                </div>
+
+
+                <div class="npos-chapter-list">
+
+                    ${
+                        chapters.length
+                            ? chapters
+                                .map(
+                                    ([chapter,row]) => `
+
+                                        <div
+                                            class="npos-chapter-row"
+                                        >
+
+                                            <div>
+
+                                                <strong>
+                                                    ${esc(chapter)}
+                                                </strong>
+
+                                                <small>
+                                                    ${row.questions} questions
+                                                </small>
+
+                                            </div>
+
+                                            <b>
+                                                ${shortDuration(row.time)}
+                                            </b>
+
+                                        </div>
+
+                                    `
+                                )
+                                .join("")
+                            :
+                            `
+                                <div class="npos-empty">
+                                    No recorded session yet
+                                </div>
+                            `
+                    }
+
+                </div>
+
+            </article>
+
+        `;
+    }
+
+
+    function totalSubjectPercent(
+        value,
+        data
+    ){
+
+        const total =
+            Object.values(data)
+                .reduce(
+                    (a,x) =>
+                        a + x.time,
+                    0
+                );
+
+        if(!total){
+            return 0;
+        }
+
+        return Math.min(
+            100,
+            Math.round(
+                value /
+                total *
+                100
+            )
+        );
+    }
+
+
+    /* =====================================================
+       TEST SUMMARY
+    ===================================================== */
+
+    function renderTestSummary(
+        tests
+    ){
+
+        const active =
+            getActiveTest();
+
+
+        const sorted =
+            tests
+                .slice()
+                .sort(
+                    (a,b) =>
+                        num(
+                            b.completedAt ||
+                            b.startedAt
+                        ) -
+                        num(
+                            a.completedAt ||
+                            a.startedAt
+                        )
+                )
+                .slice(
+                    0,
+                    5
+                );
+
+
+        let html = "";
+
+
+        if(active){
+
+            const remaining =
+                Math.max(
+                    0,
+                    num(active.endAt) -
+                    Date.now()
+                );
+
+
+            html += `
+
+                <div class="npos-active-test">
+
+                    <div>
+
+                        <strong>
+                            🔴 TEST RUNNING
+                        </strong>
+
+                        <span>
+                            ${esc(
+                                active.authority ||
+                                "Self Test"
+                            )}
+                        </span>
+
+                    </div>
+
+
+                    <div>
+
+                        <b>
+                            ${duration(
+                                Math.ceil(
+                                    remaining /
+                                    1000
+                                )
+                            )}
+                        </b>
+
+                        <small>
+                            time left
+                        </small>
+
+                    </div>
+
+                </div>
+
+            `;
+        }
+
+
+        if(!sorted.length){
+
+            html += `
+
+                <div class="npos-empty-box">
+                    No test records yet.
+                </div>
+
+            `;
+
+            return html;
+        }
+
+
+        html += `
+
+            <div class="npos-test-list">
+
+                ${sorted
+                    .map(
+                        test => {
+
+                            const p =
+                                testPercentage(
+                                    test
+                                );
+
+
+                            const topics =
+                                arr(
+                                    test.subjects
+                                )
+                                .map(
+                                    x =>
+                                        `${x.subject || ""} — ${x.chapter || ""}`
+                                )
+                                .join(
+                                    " • "
+                                );
+
+
+                            return `
+
+                                <div
+                                    class="npos-test-row"
+                                >
+
+                                    <div
+                                        class="npos-test-main"
+                                    >
+
+                                        <strong>
+                                            ${esc(
+                                                test.authority ||
+                                                "Test"
+                                            )}
+                                        </strong>
+
+                                        <span>
+                                            ${esc(
+                                                topics ||
+                                                "No topic data"
+                                            )}
+                                        </span>
+
+                                    </div>
+
+
+                                    <div
+                                        class="npos-test-middle"
+                                    >
+
+                                        <b>
+                                            ${num(
+                                                test.totalQuestions
+                                            )} Q
+                                        </b>
+
+                                        <span>
+                                            ${num(
+                                                test.fullMarks
+                                            )} Marks
+                                        </span>
+
+                                    </div>
+
+
+                                    <div
+                                        class="npos-test-time"
+                                    >
+
+                                        <b>
+                                            ${duration(
+                                                testElapsed(
+                                                    test
+                                                )
+                                            )}
+                                        </b>
+
+                                        <span>
+                                            actual time
+                                        </span>
+
+                                    </div>
+
+
+                                    <div
+                                        class="npos-test-score"
+                                    >
+
+                                        ${
+                                            isScored(test)
+                                                ?
+                                                `
+                                                    <b>
+                                                        ${num(test.score)}
+                                                        /
+                                                        ${num(test.fullMarks)}
+                                                    </b>
+
+                                                    <span>
+                                                        ${
+                                                            p !== null
+                                                                ? Math.round(p) + "%"
+                                                                : "—"
+                                                        }
+                                                    </span>
+                                                `
+                                                :
+                                                `
+                                                    <b>
+                                                        —
+                                                    </b>
+
+                                                    <span>
+                                                        Pending
+                                                    </span>
+                                                `
+                                        }
+
+                                    </div>
+
+                                </div>
+
+                            `;
+
+                        }
+                    )
+                    .join("")
+                }
+
+            </div>
+
+        `;
+
+
+        return html;
+    }
+
+
+    /* =====================================================
+       RECENT SESSIONS
+    ===================================================== */
+
+    function renderRecentSessions(){
+
+        const sessions =
+            todaySessions()
+                .slice()
+                .sort(
+                    (a,b) =>
+                        num(
+                            b.stoppedAt ||
+                            b.startedAt
+                        ) -
+                        num(
+                            a.stoppedAt ||
+                            a.startedAt
+                        )
+                )
+                .slice(
+                    0,
+                    10
+                );
+
+
+        if(!sessions.length){
+
+            return `
+                <div class="npos-empty-box">
+                    No study session recorded yet.
+                </div>
+            `;
+        }
+
+
+        return `
+
+            <div class="npos-session-list">
+
+                ${sessions
+                    .map(
+                        session => {
+
+                            const chapter =
+                                session.chapter ||
+                                session.addonChapter ||
+                                "Chapter not specified";
+
+
+                            const subject =
+                                normalizeSubject(
+                                    session.subject ||
+                                    session.addonSubject,
+                                    chapter
+                                ) ||
+                                session.subject ||
+                                "—";
+
+
+                            let seconds =
+                                num(
+                                    session.seconds ||
+                                    session.studySeconds ||
+                                    session.duration
+                                );
+
+
+                            if(
+                                !seconds &&
+                                num(session.startedAt) &&
+                                num(session.stoppedAt)
+                            ){
+
+                                seconds =
+                                    Math.floor(
+                                        (
+                                            num(session.stoppedAt) -
+                                            num(session.startedAt)
+                                        ) / 1000
+                                    );
+
+                            }
+
+
+                            return `
+
+                                <div
+                                    class="npos-session-row"
+                                >
+
+                                    <div
+                                        class="npos-session-icon"
+                                    >
+                                        ●
+                                    </div>
+
+
+                                    <div
+                                        class="npos-session-content"
+                                    >
+
+                                        <strong>
+                                            ${esc(
+                                                session.activity ||
+                                                session.taskName ||
+                                                "Study Session"
+                                            )}
+                                        </strong>
+
+                                        <span>
+                                            ${esc(subject)}
+                                            •
+                                            ${esc(chapter)}
+                                        </span>
+
+                                    </div>
+
+
+                                    <div
+                                        class="npos-session-right"
+                                    >
+
+                                        <b>
+                                            ${shortDuration(
+                                                seconds
+                                            )}
+                                        </b>
+
+                                        <span>
+                                            ${num(
+                                                session.questions ||
+                                                session.questionCount
+                                            )} Q
+                                        </span>
+
+                                    </div>
+
+                                </div>
+
+                            `;
+
+                        }
+                    )
+                    .join("")
+                }
+
+            </div>
+
+        `;
+    }
+
+
+    /* =====================================================
+       UI CSS
+    ===================================================== */
+
+    function installCSS(){
+
+        if(
+            $("nposFinalGuardianCSS")
+        ){
+            return;
+        }
+
+
+        const style =
+            document.createElement(
+                "style"
+            );
+
+        style.id =
+            "nposFinalGuardianCSS";
+
+
+        style.textContent = `
+
+            :root{
+
+                --npos-red:#ef233c;
+                --npos-red-dark:#b7091f;
+                --npos-red-soft:#ff4d5f;
+
+                --npos-bg:
+                    rgba(255,255,255,.035);
+
+                --npos-border:
+                    rgba(255,255,255,.09);
+
+                --npos-text:
+                    rgba(255,255,255,.94);
+
+                --npos-muted:
+                    rgba(255,255,255,.58);
+
+            }
+
+
+            /* =============================================
+               GLOBAL SMOOTHNESS
+            ============================================= */
+
+            html{
+                scroll-behavior:smooth;
+            }
+
+
+            body{
+                overflow-x:hidden !important;
+            }
+
+
+            button,
+            .primary-btn,
+            .secondary-btn,
+            [data-page],
+            .chapter-filter{
+
+                -webkit-tap-highlight-color:
+                    transparent;
+
+                transition:
+                    transform .18s ease,
+                    background .18s ease,
+                    border-color .18s ease,
+                    box-shadow .18s ease,
+                    color .18s ease;
+
+            }
+
+
+            button:active,
+            .primary-btn:active,
+            .secondary-btn:active{
+
+                transform:
+                    translateY(1px)
+                    scale(.985);
+
+            }
+
+
+            /* =============================================
+               BUTTON SYSTEM
+            ============================================= */
+
+            .primary-btn{
+
+                background:
+                    linear-gradient(
+                        135deg,
+                        var(--npos-red),
+                        var(--npos-red-dark)
+                    ) !important;
+
+                border:
+                    1px solid
+                    rgba(255,255,255,.12)
+                    !important;
+
+                color:#fff !important;
+
+                border-radius:
+                    11px !important;
+
+                min-height:
+                    42px !important;
+
+                padding:
+                    9px 16px !important;
+
+                font-weight:
+                    800 !important;
+
+                box-shadow:
+                    0 7px 20px
+                    rgba(239,35,60,.18);
+
+            }
+
+
+            .primary-btn:hover{
+
+                box-shadow:
+                    0 10px 28px
+                    rgba(239,35,60,.30);
+
+                transform:
+                    translateY(-1px);
+
+            }
+
+
+            .secondary-btn{
+
+                background:
+                    rgba(255,255,255,.055)
+                    !important;
+
+                border:
+                    1px solid
+                    rgba(255,255,255,.11)
+                    !important;
+
+                color:
+                    rgba(255,255,255,.9)
+                    !important;
+
+                border-radius:
+                    11px !important;
+
+                min-height:
+                    42px !important;
+
+                padding:
+                    9px 16px !important;
+
+                font-weight:
+                    750 !important;
+
+            }
+
+
+            .secondary-btn:hover{
+
+                border-color:
+                    rgba(239,35,60,.55)
+                    !important;
+
+                background:
+                    rgba(239,35,60,.10)
+                    !important;
+
+            }
+
+
+            /* =============================================
+               NAVIGATION
+            ============================================= */
+
+            [data-page]{
+
+                border-radius:
+                    11px;
+
+            }
+
+
+            [data-page].active{
+
+                background:
+                    linear-gradient(
+                        135deg,
+                        rgba(239,35,60,.22),
+                        rgba(183,9,31,.12)
+                    ) !important;
+
+                color:
+                    #fff !important;
+
+                box-shadow:
+                    inset 3px 0 0
+                    var(--npos-red);
+
+            }
+
+
+            .chapter-filter{
+
+                border-radius:
+                    10px !important;
+
+                cursor:pointer;
+
+            }
+
+
+            .chapter-filter.active{
+
+                background:
+                    var(--npos-red)
+                    !important;
+
+                color:#fff !important;
+
+                border-color:
+                    var(--npos-red)
+                    !important;
+
+            }
+
+
+            /* =============================================
+               LIVE HERO
+            ============================================= */
+
+            .npos-final-live-hero{
+
+                margin:
+                    0 0 20px;
+
+                padding:
+                    20px;
+
+                border-radius:
+                    20px;
+
+                border:
+                    1px solid
+                    rgba(239,35,60,.28);
+
+                background:
+                    linear-gradient(
+                        135deg,
+                        rgba(239,35,60,.14),
+                        rgba(255,255,255,.035)
+                    );
+
+                box-shadow:
+                    0 18px 50px
+                    rgba(0,0,0,.18);
+
+                position:relative;
+
+                overflow:hidden;
+
+            }
+
+
+            .npos-final-live-hero::before{
+
+                content:"";
+
+                position:absolute;
+
+                width:180px;
+                height:180px;
+
+                right:-70px;
+                top:-90px;
+
+                border-radius:50%;
+
+                background:
+                    rgba(239,35,60,.12);
+
+                filter:
+                    blur(5px);
+
+            }
+
+
+            .npos-live-top{
+
+                display:flex;
+
+                align-items:flex-start;
+
+                justify-content:space-between;
+
+                gap:15px;
+
+            }
+
+
+            .npos-live-kicker{
+
+                font-size:10px;
+
+                letter-spacing:
+                    .14em;
+
+                font-weight:900;
+
+                color:
+                    var(--npos-red-soft);
+
+                margin-bottom:5px;
+
+            }
+
+
+            .npos-live-title{
+
+                font-size:
+                    clamp(19px,2.3vw,28px);
+
+                font-weight:950;
+
+                line-height:1.15;
+
+            }
+
+
+            .npos-live-activity{
+
+                margin-top:5px;
+
+                color:
+                    var(--npos-muted);
+
+                font-size:13px;
+
+            }
+
+
+            .npos-live-dot{
+
+                width:12px;
+                height:12px;
+
+                border-radius:50%;
+
+                background:
+                    rgba(255,255,255,.18);
+
+                flex:0 0 auto;
+
+                margin-top:5px;
+
+            }
+
+
+            .npos-live-dot.active{
+
+                background:
+                    var(--npos-red);
+
+                box-shadow:
+                    0 0 0 5px
+                    rgba(239,35,60,.12),
+                    0 0 24px
+                    rgba(239,35,60,.55);
+
+                animation:
+                    nposPulse 1.8s
+                    infinite;
+
+            }
+
+
+            @keyframes nposPulse{
+
+                0%,100%{
+                    opacity:1;
+                }
+
+                50%{
+                    opacity:.55;
+                }
+
+            }
+
+
+            .npos-live-grid{
+
+                display:grid;
+
+                grid-template-columns:
+                    repeat(3,1fr);
+
+                gap:10px;
+
+                margin-top:18px;
+
+            }
+
+
+            .npos-live-item{
+
+                min-width:0;
+
+                padding:
+                    12px;
+
+                border-radius:
+                    13px;
+
+                background:
+                    rgba(0,0,0,.12);
+
+                border:
+                    1px solid
+                    rgba(255,255,255,.07);
+
+            }
+
+
+            .npos-live-item span{
+
+                display:block;
+
+                font-size:9px;
+
+                font-weight:900;
+
+                letter-spacing:.08em;
+
+                color:
+                    var(--npos-muted);
+
+                margin-bottom:5px;
+
+            }
+
+
+            .npos-live-item strong{
+
+                display:block;
+
+                font-size:13px;
+
+                overflow:hidden;
+
+                text-overflow:ellipsis;
+
+                white-space:nowrap;
+
+            }
+
+
+            /* =============================================
+               ANALYTICS
+            ============================================= */
+
+            .npos-final-analytics{
+
+                margin:
+                    0 0 22px;
+
+                padding:
+                    20px;
+
+                border-radius:
+                    21px;
+
+                border:
+                    1px solid
+                    rgba(239,35,60,.20);
+
+                background:
+                    linear-gradient(
+                        145deg,
+                        rgba(239,35,60,.07),
+                        rgba(255,255,255,.025)
+                    );
+
+                box-shadow:
+                    0 16px 45px
+                    rgba(0,0,0,.14);
+
+                box-sizing:border-box;
+
+            }
+
+
+            .npos-analytics-head{
+
+                display:flex;
+
+                align-items:flex-start;
+
+                justify-content:space-between;
+
+                gap:15px;
+
+                margin-bottom:18px;
+
+            }
+
+
+            .npos-analytics-kicker{
+
+                color:
+                    var(--npos-red-soft);
+
+                font-size:9px;
+
+                font-weight:950;
+
+                letter-spacing:
+                    .16em;
+
+                margin-bottom:5px;
+
+            }
+
+
+            .npos-analytics-head h2{
+
+                margin:0;
+
+                font-size:
+                    clamp(21px,2.4vw,29px);
+
+                font-weight:950;
+
+            }
+
+
+            .npos-analytics-head p{
+
+                margin:
+                    5px 0 0;
+
+                color:
+                    var(--npos-muted);
+
+                font-size:12px;
+
+            }
+
+
+            .npos-live-badge{
+
+                white-space:nowrap;
+
+                color:
+                    #fff;
+
+                background:
+                    rgba(239,35,60,.15);
+
+                border:
+                    1px solid
+                    rgba(239,35,60,.35);
+
+                padding:
+                    7px 10px;
+
+                border-radius:
+                    999px;
+
+                font-size:9px;
+
+                font-weight:950;
+
+            }
+
+
+            .npos-overview-grid{
+
+                display:grid;
+
+                grid-template-columns:
+                    repeat(6,1fr);
+
+                gap:9px;
+
+            }
+
+
+            .npos-overview-card{
+
+                min-width:0;
+
+                padding:
+                    12px;
+
+                border-radius:
+                    13px;
+
+                background:
+                    rgba(255,255,255,.035);
+
+                border:
+                    1px solid
+                    rgba(255,255,255,.07);
+
+            }
+
+
+            .npos-overview-card span{
+
+                display:block;
+
+                font-size:8px;
+
+                font-weight:900;
+
+                color:
+                    var(--npos-muted);
+
+                letter-spacing:.05em;
+
+                margin-bottom:5px;
+
+            }
+
+
+            .npos-overview-card strong{
+
+                display:block;
+
+                font-size:
+                    clamp(15px,1.5vw,19px);
+
+                font-weight:950;
+
+                color:#fff;
+
+                white-space:nowrap;
+
+                overflow:hidden;
+
+                text-overflow:ellipsis;
+
+            }
+
+
+            .npos-section-heading{
+
+                margin:
+                    24px 0 11px;
+
+                display:flex;
+
+                align-items:flex-end;
+
+                justify-content:space-between;
+
+                gap:10px;
+
+            }
+
+
+            .npos-section-heading div{
+
+                font-size:14px;
+
+                font-weight:950;
+
+            }
+
+
+            .npos-section-heading small{
+
+                font-size:10px;
+
+                color:
+                    var(--npos-muted);
+
+            }
+
+
+            /* =============================================
+               SUBJECT CARDS
+            ============================================= */
+
+            .npos-subject-grid{
+
+                display:grid;
+
+                grid-template-columns:
+                    repeat(4,1fr);
+
+                gap:10px;
+
+            }
+
+
+            .npos-subject-card{
+
+                min-width:0;
+
+                padding:
+                    14px;
+
+                border-radius:
+                    16px;
+
+                background:
+                    rgba(255,255,255,.035);
+
+                border:
+                    1px solid
+                    rgba(255,255,255,.075);
+
+                transition:
+                    transform .2s ease,
+                    border-color .2s ease,
+                    background .2s ease;
+
+            }
+
+
+            .npos-subject-card:hover{
+
+                transform:
+                    translateY(-2px);
+
+                border-color:
+                    rgba(239,35,60,.30);
+
+                background:
+                    rgba(239,35,60,.045);
+
+            }
+
+
+            .npos-subject-top{
+
+                display:flex;
+
+                justify-content:space-between;
+
+                gap:10px;
+
+                align-items:flex-start;
+
+            }
+
+
+            .npos-subject-name{
+
+                font-size:14px;
+
+                font-weight:950;
+
+            }
+
+
+            .npos-subject-meta{
+
+                margin-top:3px;
+
+                color:
+                    var(--npos-muted);
+
+                font-size:10px;
+
+            }
+
+
+            .npos-subject-time{
+
+                color:
+                    var(--npos-red-soft);
+
+                font-size:13px;
+
+                font-weight:950;
+
+                white-space:nowrap;
+
+            }
+
+
+            .npos-progress-track{
+
+                height:5px;
+
+                border-radius:
+                    99px;
+
+                background:
+                    rgba(255,255,255,.07);
+
+                overflow:hidden;
+
+                margin:
+                    12px 0 9px;
+
+            }
+
+
+            .npos-progress-fill{
+
+                height:100%;
+
+                border-radius:
+                    inherit;
+
+                background:
+                    linear-gradient(
+                        90deg,
+                        var(--npos-red-dark),
+                        var(--npos-red-soft)
+                    );
+
+                box-shadow:
+                    0 0 12px
+                    rgba(239,35,60,.30);
+
+            }
+
+
+            .npos-subject-stats{
+
+                display:flex;
+
+                justify-content:space-between;
+
+                gap:5px;
+
+                color:
+                    var(--npos-muted);
+
+                font-size:9px;
+
+                margin-bottom:9px;
+
+            }
+
+
+            .npos-chapter-list{
+
+                border-top:
+                    1px solid
+                    rgba(255,255,255,.055);
+
+            }
+
+
+            .npos-chapter-row{
+
+                display:flex;
+
+                justify-content:space-between;
+
+                gap:8px;
+
+                padding:
+                    8px 0;
+
+                border-bottom:
+                    1px solid
+                    rgba(255,255,255,.045);
+
+            }
+
+
+            .npos-chapter-row:last-child{
+
+                border-bottom:0;
+
+            }
+
+
+            .npos-chapter-row strong{
+
+                display:block;
+
+                font-size:10px;
+
+                line-height:1.35;
+
+            }
+
+
+            .npos-chapter-row small{
+
+                display:block;
+
+                margin-top:2px;
+
+                font-size:8px;
+
+                color:
+                    var(--npos-muted);
+
+            }
+
+
+            .npos-chapter-row b{
+
+                color:
+                    rgba(255,255,255,.72);
+
+                font-size:9px;
+
+                white-space:nowrap;
+
+            }
+
+
+            /* =============================================
+               TEST
+            ============================================= */
+
+            .npos-active-test{
+
+                display:flex;
+
+                justify-content:space-between;
+
+                align-items:center;
+
+                gap:15px;
+
+                padding:
+                    13px 15px;
+
+                margin-bottom:10px;
+
+                border-radius:
+                    14px;
+
+                background:
+                    rgba(239,35,60,.10);
+
+                border:
+                    1px solid
+                    rgba(239,35,60,.28);
+
+            }
+
+
+            .npos-active-test strong{
+
+                display:block;
+
+                color:
+                    var(--npos-red-soft);
+
+                font-size:12px;
+
+            }
+
+
+            .npos-active-test span{
+
+                display:block;
+
+                margin-top:3px;
+
+                font-size:10px;
+
+                color:
+                    var(--npos-muted);
+
+            }
+
+
+            .npos-active-test b{
+
+                display:block;
+
+                text-align:right;
+
+                font-size:18px;
+
+            }
+
+
+            .npos-active-test small{
+
+                display:block;
+
+                color:
+                    var(--npos-muted);
+
+                font-size:8px;
+
+                text-align:right;
+
+            }
+
+
+            .npos-test-list{
+
+                border:
+                    1px solid
+                    rgba(255,255,255,.06);
+
+                border-radius:
+                    14px;
+
+                overflow:hidden;
+
+            }
+
+
+            .npos-test-row{
+
+                display:grid;
+
+                grid-template-columns:
+                    minmax(0,2.5fr)
+                    90px
+                    105px
+                    90px;
+
+                gap:12px;
+
+                align-items:center;
+
+                padding:
+                    12px 14px;
+
+                border-bottom:
+                    1px solid
+                    rgba(255,255,255,.055);
+
+            }
+
+
+            .npos-test-row:last-child{
+
+                border-bottom:0;
+
+            }
+
+
+            .npos-test-main{
+
+                min-width:0;
+
+            }
+
+
+            .npos-test-main strong{
+
+                display:block;
+
+                font-size:11px;
+
+            }
+
+
+            .npos-test-main span{
+
+                display:block;
+
+                margin-top:3px;
+
+                color:
+                    var(--npos-muted);
+
+                font-size:9px;
+
+                white-space:nowrap;
+
+                overflow:hidden;
+
+                text-overflow:ellipsis;
+
+            }
+
+
+            .npos-test-middle b,
+            .npos-test-time b,
+            .npos-test-score b{
+
+                display:block;
+
+                font-size:11px;
+
+            }
+
+
+            .npos-test-middle span,
+            .npos-test-time span,
+            .npos-test-score span{
+
+                display:block;
+
+                margin-top:2px;
+
+                color:
+                    var(--npos-muted);
+
+                font-size:8px;
+
+            }
+
+
+            .npos-test-score b{
+
+                color:
+                    var(--npos-red-soft);
+
+            }
+
+
+            /* =============================================
+               SESSION LIST
+            ============================================= */
+
+            .npos-session-list{
+
+                border:
+                    1px solid
+                    rgba(255,255,255,.06);
+
+                border-radius:
+                    14px;
+
+                overflow:hidden;
+
+            }
+
+
+            .npos-session-row{
+
+                display:flex;
+
+                align-items:center;
+
+                gap:10px;
+
+                padding:
+                    11px 13px;
+
+                border-bottom:
+                    1px solid
+                    rgba(255,255,255,.05);
+
+            }
+
+
+            .npos-session-row:last-child{
+
+                border-bottom:0;
+
+            }
+
+
+            .npos-session-icon{
+
+                width:8px;
+                height:8px;
+
+                border-radius:50%;
+
+                background:
+                    var(--npos-red);
+
+                box-shadow:
+                    0 0 10px
+                    rgba(239,35,60,.40);
+
+                flex:0 0 auto;
+
+            }
+
+
+            .npos-session-content{
+
+                min-width:0;
+
+                flex:1;
+
+            }
+
+
+            .npos-session-content strong{
+
+                display:block;
+
+                font-size:11px;
+
+            }
+
+
+            .npos-session-content span{
+
+                display:block;
+
+                margin-top:2px;
+
+                color:
+                    var(--npos-muted);
+
+                font-size:9px;
+
+                white-space:nowrap;
+
+                overflow:hidden;
+
+                text-overflow:ellipsis;
+
+            }
+
+
+            .npos-session-right{
+
+                text-align:right;
+
+                flex:0 0 auto;
+
+            }
+
+
+            .npos-session-right b{
+
+                display:block;
+
+                font-size:10px;
+
+            }
+
+
+            .npos-session-right span{
+
+                display:block;
+
+                color:
+                    var(--npos-muted);
+
+                font-size:8px;
+
+                margin-top:2px;
+
+            }
+
+
+            .npos-empty,
+            .npos-empty-box{
+
+                color:
+                    var(--npos-muted);
+
+                font-size:10px;
+
+                padding:
+                    12px 0;
+
+            }
+
+
+            .npos-empty-box{
+
+                padding:
+                    15px;
+
+                border:
+                    1px solid
+                    rgba(255,255,255,.06);
+
+                border-radius:
+                    14px;
+
+            }
+
+
+            /* =============================================
+               EXISTING CARDS
+            ============================================= */
+
+            .card{
+
+                border-radius:
+                    16px;
+
+            }
+
+
+            .section-title{
+
+                gap:12px;
+
+            }
+
+
+            /* =============================================
+               RESPONSIVE
+            ============================================= */
+
+            @media(max-width:1200px){
+
+                .npos-overview-grid{
+
+                    grid-template-columns:
+                        repeat(3,1fr);
+
+                }
+
+                .npos-subject-grid{
+
+                    grid-template-columns:
+                        repeat(2,1fr);
+
+                }
+
+            }
+
+
+            @media(max-width:760px){
+
+                .npos-live-grid{
+
+                    grid-template-columns:
+                        1fr;
+
+                }
+
+
+                .npos-overview-grid{
+
+                    grid-template-columns:
+                        repeat(2,1fr);
+
+                }
+
+
+                .npos-subject-grid{
+
+                    grid-template-columns:
+                        1fr;
+
+                }
+
+
+                .npos-test-row{
+
+                    grid-template-columns:
+                        1fr 1fr;
+
+                }
+
+
+                .npos-test-main{
+
+                    grid-column:
+                        1 / -1;
+
+                }
+
+
+                .npos-analytics-head{
+
+                    align-items:
+                        flex-start;
+
+                }
+
+            }
+
+
+            @media(max-width:480px){
+
+                .npos-final-analytics,
+                .npos-final-live-hero{
+
+                    padding:
+                        15px;
+
+                    border-radius:
+                        16px;
+
+                }
+
+
+                .npos-overview-grid{
+
+                    grid-template-columns:
+                        1fr 1fr;
+
+                }
+
+
+                .npos-overview-card{
+
+                    padding:
+                        10px;
+
+                }
+
+
+                .npos-section-heading{
+
+                    align-items:
+                        flex-start;
+
+                    flex-direction:
+                        column;
+
+                    gap:3px;
+
+                }
+
+
+                .npos-test-row{
+
+                    grid-template-columns:
+                        1fr;
+
+                }
+
+
+                .npos-test-middle,
+                .npos-test-time,
+                .npos-test-score{
+
+                    display:flex;
+
+                    justify-content:
+                        space-between;
+
+                    align-items:center;
+
+                    gap:10px;
+
+                }
+
+
+                .npos-test-middle span,
+                .npos-test-time span,
+                .npos-test-score span{
+
+                    margin-top:0;
+
+                }
+
+            }
+
+        `;
+
+
+        document.head.appendChild(
+            style
+        );
+    }
+
+
+    /* =====================================================
+       EXISTING UI POLISH
+    ===================================================== */
+
+    function polishExistingUI(){
+
+        const ids = [
+
+            "homePage",
+            "dailyPage",
+            "weeklyPage",
+            "monthlyPage",
+            "subjectsPage",
+            "chaptersPage",
+            "statsPage",
+            "syncPage",
+            "morePage"
+
+        ];
+
+
+        ids.forEach(
+            id => {
+
+                const page =
+                    $(id);
+
+                if(!page){
+                    return;
+                }
+
+                page.style.boxSizing =
+                    "border-box";
+
+            }
+        );
+
+
+        /*
+         * Make menu close automatically
+         * after navigation without touching
+         * original navigation function.
+         */
+
+        document
+            .querySelectorAll(
+                "[data-page]"
+            )
+            .forEach(
+                button => {
+
+                    if(
+                        button.dataset
+                            .nposFinalBound
+                    ){
+                        return;
+                    }
+
+                    button.dataset
+                        .nposFinalBound =
+                        "1";
+
+
+                    button.addEventListener(
+                        "click",
+                        () => {
+
+                            setTimeout(
+                                () => {
+
+                                    const menu =
+                                        $("sideMenu");
+
+                                    if(
+                                        menu
+                                    ){
+                                        menu.classList
+                                            .remove(
+                                                "open"
+                                            );
+                                    }
+
+                                },
+                                80
+                            );
+
+                        },
+                        {
+                            passive:true
+                        }
+                    );
+
+                }
+            );
+
+    }
+
+
+    /* =====================================================
+       REFRESH
+    ===================================================== */
+
+    function refresh(){
+
+        try{
+
+            installCSS();
+
+            polishExistingUI();
+
+            updateLiveHero();
+
+            renderAnalytics();
+
+        }catch(error){
+
+            console.warn(
+                "NP-OS Final Guardian UI refresh error:",
+                error
+            );
+
+        }
+
+    }
+
+
+    /* =====================================================
+       START
+    ===================================================== */
+
+    let timer = null;
+
+
+    function start(){
+
+        clearInterval(
+            timer
+        );
+
+
+        refresh();
+
+
+        /*
+         * 2 sec is enough.
+         * Existing NP-OS already runs
+         * its own 1 sec update loop.
+         */
+
+        timer =
+            setInterval(
+                refresh,
+                2000
+            );
+
+
+        console.log(
+            "✅ NP-OS Final Guardian UI v" +
+            VERSION +
+            " loaded."
+        );
+
+    }
+
+
+    /* =====================================================
+       PUBLIC API
+    ===================================================== */
+
+    window.NPOSFinalGuardianUI = {
+
+        version:
+            VERSION,
+
+        refresh,
+
+        getTests,
+
+        getActiveTest,
+
+        totalTestTime,
+
+        activeTestElapsed,
+
+        buildAnalytics,
+
+        liveState
+
+    };
+
+
+    if(
+        document.readyState ===
+        "loading"
+    ){
+
+        document.addEventListener(
+            "DOMContentLoaded",
+            start,
+            {
+                once:true
+            }
+        );
+
+    }else{
+
+        setTimeout(
+            start,
+            250
+        );
+
+    }
+
+
+})();
+/* NEET OS — Scroll Stabilizer Safe Patch */
+(function(){
+    "use strict";
+
+    const oldScrollTo = window.scrollTo;
+
+    window.scrollTo = function(x, y){
+        // User নিজে scroll করলে stabilizer-এর forced jump আটকাবে
+        if (
+            window.NEETOSScrollStabilizer &&
+            !window.__NEETOS_ALLOW_FORCED_SCROLL
+        ) {
+            return;
+        }
+
+        return oldScrollTo.apply(window, arguments);
+    };
+
+    // Normal browser/user scrolling completely allowed
+    window.addEventListener("wheel", function(){
+        window.__NEETOS_ALLOW_FORCED_SCROLL = false;
+    }, {passive:true});
+
+    window.addEventListener("touchmove", function(){
+        window.__NEETOS_ALLOW_FORCED_SCROLL = false;
+    }, {passive:true});
+
+    window.addEventListener("keydown", function(e){
+        if (
+            ["ArrowUp","ArrowDown","PageUp","PageDown",
+             "Home","End"," ","Spacebar"].includes(e.key)
+        ){
+            window.__NEETOS_ALLOW_FORCED_SCROLL = false;
+        }
+    });
+
+    console.log("✅ NEET OS — Scroll Safe Patch active.");
+})();
+/* =========================================================
+   NP-OS — FINAL MOBILE PREMIUM UI
+   Version: 6.0.0
+   UI ONLY / SAFE / APPEND ONLY
+========================================================= */
+
+(function NPOS_FINAL_MOBILE_PREMIUM_UI(){
+
+    "use strict";
+
+    if (window.__NPOS_FINAL_MOBILE_PREMIUM_UI_V6) return;
+
+    window.__NPOS_FINAL_MOBILE_PREMIUM_UI_V6 = true;
+
+    const VERSION = "6.0.0";
+
+    /* ---------------------------------------------------------
+       1. PREMIUM RED THEME
+    --------------------------------------------------------- */
+
+    function injectCSS(){
+
+        if(document.getElementById("nposFinalPremiumUIStyle")) return;
+
+        const style = document.createElement("style");
+        style.id = "nposFinalPremiumUIStyle";
+
+        style.textContent = `
+
+        /* ================================
+           ROOT THEME
+        ================================= */
+
+        :root{
+            --np-red:#e5092f;
+            --np-red2:#ff3152;
+            --np-red3:#b80024;
+            --np-red-soft:rgba(229,9,47,.12);
+            --np-red-border:rgba(229,9,47,.28);
+
+            --np-bg:#06080d;
+            --np-bg2:#0a0d14;
+
+            --np-card:#10131b;
+            --np-card2:#151923;
+
+            --np-text:#f7f8fb;
+            --np-muted:#9ca5b5;
+            --np-muted2:#697386;
+
+            --np-border:rgba(255,255,255,.075);
+
+            --np-shadow:
+                0 12px 35px rgba(0,0,0,.30);
+
+            --np-radius:18px;
+        }
+
+
+        /* ================================
+           GLOBAL
+        ================================= */
+
+        html{
+            scroll-behavior:smooth;
+        }
+
+        body{
+            background:
+                radial-gradient(
+                    circle at 50% -10%,
+                    rgba(229,9,47,.13),
+                    transparent 35%
+                ),
+                linear-gradient(
+                    180deg,
+                    var(--np-bg),
+                    var(--np-bg2)
+                ) !important;
+
+            color:var(--np-text) !important;
+        }
+
+        #app{
+            background:transparent !important;
+        }
+
+        #mainApp{
+            max-width:100%;
+            padding-bottom:70px !important;
+        }
+
+        #pageContainer{
+            width:100%;
+            max-width:720px;
+            margin:0 auto;
+            padding:16px 14px 80px;
+        }
+
+
+        /* ================================
+           HEADER
+        ================================= */
+
+        .top-header{
+            position:sticky !important;
+            top:0;
+            z-index:200;
+
+            height:62px;
+
+            padding:
+                10px 14px !important;
+
+            background:
+                rgba(6,8,13,.88) !important;
+
+            border-bottom:
+                1px solid rgba(229,9,47,.14) !important;
+
+            backdrop-filter:blur(20px);
+            -webkit-backdrop-filter:blur(20px);
+
+            box-shadow:
+                0 5px 25px rgba(0,0,0,.22);
+        }
+
+        .header-left{
+            gap:11px !important;
+        }
+
+        .menu-button{
+            width:42px;
+            height:42px;
+
+            display:flex !important;
+            align-items:center;
+            justify-content:center;
+
+            border-radius:13px;
+
+            background:
+                rgba(229,9,47,.10) !important;
+
+            border:
+                1px solid rgba(229,9,47,.22);
+
+            color:#fff;
+
+            font-size:21px;
+
+            transition:
+                transform .18s ease,
+                background .18s ease;
+        }
+
+        .menu-button:active{
+            transform:scale(.94);
+        }
+
+        .app-title{
+            font-size:19px !important;
+            font-weight:900 !important;
+            letter-spacing:-.5px;
+        }
+
+        .app-subtitle{
+            color:#7f899b !important;
+            font-size:10px !important;
+        }
+
+        .connection-indicator{
+            color:var(--np-red2) !important;
+        }
+
+        .guardian-avatar{
+            width:38px !important;
+            height:38px !important;
+
+            display:flex;
+            align-items:center;
+            justify-content:center;
+
+            border-radius:50%;
+
+            background:
+                linear-gradient(
+                    145deg,
+                    var(--np-red),
+                    var(--np-red3)
+                ) !important;
+
+            color:#fff !important;
+
+            font-weight:900;
+
+            box-shadow:
+                0 0 0 4px rgba(229,9,47,.08);
+        }
+
+
+        /* ================================
+           PAGE
+        ================================= */
+
+        .page{
+            width:100%;
+        }
+
+        .page-heading{
+            display:flex;
+            align-items:flex-start;
+            justify-content:space-between;
+
+            gap:12px;
+
+            margin-bottom:15px !important;
+        }
+
+        .page-heading h1{
+            font-size:28px !important;
+            line-height:1.1;
+            letter-spacing:-.9px;
+        }
+
+        .eyebrow{
+            color:var(--np-red2) !important;
+            font-size:10px !important;
+            font-weight:850;
+            letter-spacing:1px;
+            text-transform:uppercase;
+        }
+
+
+        /* ================================
+           CARDS
+        ================================= */
+
+        .card,
+        .summary-card,
+        .subject-card,
+        .subject-detail-card,
+        .sync-card,
+        .report-summary-card,
+        .chart-card,
+        .settings-card,
+        .creator-card,
+        .repair-card{
+
+            background:
+                linear-gradient(
+                    145deg,
+                    rgba(20,23,32,.97),
+                    rgba(11,13,19,.98)
+                ) !important;
+
+            border:
+                1px solid var(--np-border) !important;
+
+            border-radius:
+                var(--np-radius) !important;
+
+            box-shadow:
+                var(--np-shadow) !important;
+
+            position:relative;
+        }
+
+        .card::after,
+        .summary-card::after,
+        .subject-card::after{
+
+            content:"";
+
+            position:absolute;
+
+            left:0;
+            top:0;
+
+            width:100%;
+            height:1px;
+
+            background:
+                linear-gradient(
+                    90deg,
+                    transparent,
+                    rgba(229,9,47,.35),
+                    transparent
+                );
+
+            pointer-events:none;
+        }
+
+
+        /* ================================
+           LIVE STATUS
+        ================================= */
+
+        #liveStatusCard{
+
+            border:
+                1px solid rgba(229,9,47,.24) !important;
+
+            background:
+                radial-gradient(
+                    circle at 100% 0%,
+                    rgba(229,9,47,.13),
+                    transparent 38%
+                ),
+                linear-gradient(
+                    145deg,
+                    #17151b,
+                    #0d1016
+                ) !important;
+
+            overflow:hidden;
+        }
+
+        #liveStatusCard::before{
+
+            content:"";
+
+            position:absolute;
+
+            left:0;
+            top:0;
+            bottom:0;
+
+            width:4px;
+
+            background:
+                linear-gradient(
+                    180deg,
+                    var(--np-red2),
+                    var(--np-red3)
+                );
+
+            border-radius:10px;
+        }
+
+        #liveStatusTitle{
+            font-size:18px !important;
+            font-weight:850 !important;
+        }
+
+        #liveTaskName{
+            font-size:21px !important;
+            font-weight:900 !important;
+            letter-spacing:-.4px;
+        }
+
+        #liveSubject{
+            color:#d0d5df !important;
+            margin-top:4px;
+        }
+
+        #liveChapter{
+            color:var(--np-muted) !important;
+            margin-top:3px;
+        }
+
+        #liveTimer{
+            color:#fff !important;
+
+            font-size:
+                clamp(28px,8vw,38px) !important;
+
+            font-weight:900 !important;
+
+            letter-spacing:
+                1px;
+        }
+
+        #liveStatusDot.active{
+            background:var(--np-red2) !important;
+
+            box-shadow:
+                0 0 0 5px rgba(229,9,47,.12),
+                0 0 18px rgba(229,9,47,.35) !important;
+        }
+
+
+        /* ================================
+           PROGRESS
+        ================================= */
+
+        .progress-card{
+            padding:18px !important;
+        }
+
+        .progress-ring{
+
+            background:
+                conic-gradient(
+                    var(--np-red) 0deg,
+                    var(--np-red2) 45%,
+                    rgba(255,255,255,.07) 45%,
+                    rgba(255,255,255,.07) 360deg
+                ) !important;
+
+            box-shadow:
+                0 0 35px rgba(229,9,47,.08);
+        }
+
+        .progress-line-fill,
+        .large-progress-fill,
+        .mini-progress-fill,
+        .subject-progress-fill{
+
+            background:
+                linear-gradient(
+                    90deg,
+                    var(--np-red3),
+                    var(--np-red2)
+                ) !important;
+        }
+
+
+        /* ================================
+           SUMMARY
+        ================================= */
+
+        .summary-grid{
+
+            display:grid !important;
+
+            grid-template-columns:
+                repeat(2,minmax(0,1fr)) !important;
+
+            gap:10px !important;
+        }
+
+        .summary-card{
+
+            min-width:0;
+
+            padding:
+                15px !important;
+
+            margin:0 !important;
+
+            transition:
+                transform .18s ease,
+                border-color .18s ease;
+        }
+
+        .summary-card:active{
+            transform:scale(.985);
+        }
+
+        .summary-icon{
+            font-size:19px !important;
+        }
+
+        .summary-label{
+            color:var(--np-muted) !important;
+            font-size:10px !important;
+        }
+
+        .summary-card strong{
+            font-size:20px !important;
+            font-weight:900 !important;
+        }
+
+
+        /* ================================
+           SUBJECT CARDS
+        ================================= */
+
+        .subject-grid{
+
+            display:grid !important;
+
+            grid-template-columns:
+                repeat(2,minmax(0,1fr)) !important;
+
+            gap:10px !important;
+        }
+
+        .subject-card{
+
+            padding:15px !important;
+
+            margin:0 !important;
+
+            min-width:0;
+
+            transition:
+                transform .18s ease,
+                border-color .18s ease;
+        }
+
+        .subject-card:active{
+            transform:scale(.985);
+        }
+
+        .subject-top{
+            display:flex;
+            align-items:center;
+            gap:8px;
+        }
+
+        .subject-icon{
+            width:31px;
+            height:31px;
+
+            display:flex;
+            align-items:center;
+            justify-content:center;
+
+            border-radius:10px;
+
+            background:
+                rgba(229,9,47,.10);
+
+            border:
+                1px solid rgba(229,9,47,.16);
+        }
+
+        .subject-stat strong{
+            font-size:19px !important;
+        }
+
+        .subject-stat span,
+        .subject-footer span{
+            color:var(--np-muted) !important;
+            font-size:10px !important;
+        }
+
+        .subject-footer strong{
+            font-size:14px !important;
+        }
+
+
+        /* ================================
+           SECTION HEADINGS
+        ================================= */
+
+        .section-heading{
+
+            display:flex;
+
+            align-items:center;
+
+            justify-content:space-between;
+
+            gap:10px;
+
+            margin:
+                20px 2px 10px !important;
+        }
+
+        .section-heading h2{
+            font-size:17px !important;
+            font-weight:850 !important;
+            letter-spacing:-.3px;
+        }
+
+        .text-button{
+
+            border:0 !important;
+
+            background:
+                rgba(229,9,47,.09) !important;
+
+            color:
+                var(--np-red2) !important;
+
+            border-radius:
+                999px !important;
+
+            padding:
+                7px 11px !important;
+
+            font-size:11px !important;
+
+            font-weight:800 !important;
+        }
+
+
+        /* ================================
+           ALL BUTTONS
+        ================================= */
+
+        button{
+
+            -webkit-tap-highlight-color:
+                transparent;
+
+            touch-action:
+                manipulation;
+        }
+
+        .primary-button,
+        button.primary,
+        #refreshSyncButton{
+
+            min-height:44px !important;
+
+            border:0 !important;
+
+            border-radius:13px !important;
+
+            background:
+                linear-gradient(
+                    135deg,
+                    var(--np-red),
+                    var(--np-red2)
+                ) !important;
+
+            color:#fff !important;
+
+            font-weight:850 !important;
+
+            box-shadow:
+                0 7px 20px rgba(229,9,47,.20);
+
+            transition:
+                transform .16s ease,
+                filter .16s ease,
+                box-shadow .16s ease;
+        }
+
+        .primary-button:active,
+        button.primary:active,
+        #refreshSyncButton:active{
+            transform:scale(.97);
+            box-shadow:
+                0 4px 12px rgba(229,9,47,.16);
+        }
+
+        .secondary-button,
+        button.secondary{
+
+            min-height:42px !important;
+
+            border:
+                1px solid rgba(255,255,255,.10) !important;
+
+            background:
+                rgba(255,255,255,.045) !important;
+
+            color:#fff !important;
+
+            border-radius:12px !important;
+        }
+
+
+        /* ================================
+           SIDEBAR
+        ================================= */
+
+        #sideMenu{
+
+            width:
+                min(310px,86vw) !important;
+
+            background:
+                linear-gradient(
+                    180deg,
+                    #151017,
+                    #080a0f
+                ) !important;
+
+            border-right:
+                1px solid rgba(229,9,47,.18) !important;
+
+            box-shadow:
+                20px 0 60px rgba(0,0,0,.55) !important;
+
+            padding:
+                16px 13px !important;
+
+            overflow-y:auto !important;
+
+            overscroll-behavior:
+                contain;
+        }
+
+        .side-menu-header{
+
+            min-height:48px;
+
+            display:flex !important;
+
+            align-items:center;
+
+            justify-content:space-between;
+
+            margin-bottom:10px;
+        }
+
+        .side-menu-header strong{
+
+            color:#fff;
+
+            font-size:18px;
+            font-weight:900;
+        }
+
+        #closeMenuButton{
+
+            width:40px;
+            height:40px;
+
+            display:flex;
+            align-items:center;
+            justify-content:center;
+
+            border:1px solid rgba(255,255,255,.08);
+
+            border-radius:12px;
+
+            background:
+                rgba(255,255,255,.045);
+
+            color:#fff;
+
+            font-size:24px;
+        }
+
+        .nav-menu-item,
+        #sideMenu [data-page]{
+
+            min-height:46px !important;
+
+            width:100% !important;
+
+            display:flex !important;
+
+            align-items:center !important;
+
+            gap:12px !important;
+
+            padding:
+                11px 13px !important;
+
+            margin-bottom:5px !important;
+
+            border:
+                1px solid transparent !important;
+
+            border-radius:13px !important;
+
+            background:
+                transparent !important;
+
+            color:#9ca5b5 !important;
+
+            font-size:13px !important;
+
+            font-weight:650 !important;
+
+            text-align:left !important;
+        }
+
+        .nav-menu-item.active,
+        .nav-menu-item:hover,
+        #sideMenu [data-page].active{
+
+            background:
+                linear-gradient(
+                    90deg,
+                    rgba(229,9,47,.16),
+                    rgba(229,9,47,.055)
+                ) !important;
+
+            border-color:
+                rgba(229,9,47,.18) !important;
+
+            color:#fff !important;
+        }
+
+        .nav-menu-item.active::before{
+
+            content:"";
+
+            width:3px;
+            height:22px;
+
+            position:absolute;
+
+            left:13px;
+
+            background:
+                var(--np-red2);
+
+            border-radius:999px;
+        }
+
+        .side-menu-footer{
+
+            margin-top:16px;
+
+            padding-top:12px;
+
+            border-top:
+                1px solid rgba(255,255,255,.07);
+        }
+
+        .logout-button{
+
+            width:100% !important;
+
+            min-height:44px;
+
+            border:
+                1px solid rgba(229,9,47,.18) !important;
+
+            border-radius:12px !important;
+
+            background:
+                rgba(229,9,47,.06) !important;
+
+            color:#ff6a82 !important;
+
+            font-weight:800;
+        }
+
+
+        /* ================================
+           FILTERS / CHAPTERS
+        ================================= */
+
+        .chapter-filter{
+
+            border:
+                1px solid rgba(255,255,255,.09) !important;
+
+            background:
+                rgba(255,255,255,.04) !important;
+
+            color:#aeb6c5 !important;
+
+            border-radius:999px !important;
+
+            padding:
+                8px 12px !important;
+        }
+
+        .chapter-filter.active{
+
+            background:
+                rgba(229,9,47,.12) !important;
+
+            border-color:
+                rgba(229,9,47,.28) !important;
+
+            color:
+                var(--np-red2) !important;
+        }
+
+
+        /* ================================
+           REPORT ROWS
+        ================================= */
+
+        .task-report-row,
+        .daily-breakdown-row,
+        .subject-report-row,
+        .chapter-row,
+        .stat-row-page,
+        .feature-row{
+
+            padding:
+                13px 0 !important;
+
+            border-bottom:
+                1px solid rgba(255,255,255,.055) !important;
+        }
+
+
+        /* ================================
+           STATS
+        ================================= */
+
+        .stats-grid{
+
+            display:grid !important;
+
+            grid-template-columns:
+                repeat(2,minmax(0,1fr)) !important;
+
+            gap:10px !important;
+        }
+
+        .stat-box{
+
+            padding:15px !important;
+
+            background:
+                rgba(255,255,255,.035) !important;
+
+            border:
+                1px solid rgba(255,255,255,.07) !important;
+
+            border-radius:15px !important;
+        }
+
+        .stat-box strong{
+
+            color:#fff !important;
+
+            font-size:20px !important;
+
+            font-weight:900 !important;
+        }
+
+
+        /* ================================
+           INPUTS / MODALS
+        ================================= */
+
+        input,
+        select,
+        textarea{
+
+            border-radius:12px !important;
+
+            border:
+                1px solid rgba(255,255,255,.10) !important;
+
+            background:
+                #11151d !important;
+
+            color:#fff !important;
+
+            outline:none;
+        }
+
+        input:focus,
+        select:focus,
+        textarea:focus{
+
+            border-color:
+                rgba(229,9,47,.45) !important;
+
+            box-shadow:
+                0 0 0 3px rgba(229,9,47,.08) !important;
+        }
+
+        .modal-overlay{
+
+            background:
+                rgba(0,0,0,.72) !important;
+
+            backdrop-filter:
+                blur(9px);
+        }
+
+        .modal-card{
+
+            width:
+                min(94vw,500px) !important;
+
+            max-height:
+                88vh;
+
+            overflow-y:auto;
+
+            border:
+                1px solid rgba(229,9,47,.17) !important;
+
+            border-radius:20px !important;
+
+            background:
+                linear-gradient(
+                    145deg,
+                    #17151c,
+                    #0c0f15
+                ) !important;
+
+            box-shadow:
+                0 25px 80px rgba(0,0,0,.55) !important;
+        }
+
+
+        /* ================================
+           TOAST
+        ================================= */
+
+        #toast{
+
+            border:
+                1px solid rgba(229,9,47,.22) !important;
+
+            background:
+                rgba(18,12,17,.96) !important;
+
+            color:#fff !important;
+
+            border-radius:13px !important;
+
+            box-shadow:
+                0 12px 35px rgba(0,0,0,.35);
+        }
+
+
+        /* ================================
+           SCROLL SAFETY
+        ================================= */
+
+        html,
+        body{
+
+            overflow-x:hidden !important;
+
+            overscroll-behavior-x:none;
+        }
+
+        #pageContainer,
+        #mainApp{
+
+            overflow-x:clip;
+        }
+
+
+        /* ================================
+           MOBILE 360–430
+        ================================= */
+
+        @media(max-width:700px){
+
+            #pageContainer{
+                padding:
+                    14px 11px 70px !important;
+            }
+
+            .card{
+                padding:16px !important;
+            }
+
+            .page-heading h1{
+                font-size:27px !important;
+            }
+
+            .progress-card{
+                padding:16px !important;
+            }
+
+            .progress-overview{
+                gap:14px !important;
+            }
+
+            .progress-ring{
+                width:135px !important;
+                height:135px !important;
+            }
+
+            .subject-card{
+                padding:14px !important;
+            }
+
+            .section-heading{
+                margin-top:18px !important;
+            }
+
+            canvas{
+                max-width:100%;
+            }
+        }
+
+
+        /* ================================
+           VERY SMALL PHONE
+        ================================= */
+
+        @media(max-width:380px){
+
+            #pageContainer{
+                padding-left:9px !important;
+                padding-right:9px !important;
+            }
+
+            .top-header{
+                padding-left:10px !important;
+                padding-right:10px !important;
+            }
+
+            .menu-button{
+                width:39px;
+                height:39px;
+            }
+
+            .guardian-avatar{
+                width:35px !important;
+                height:35px !important;
+            }
+
+            .app-title{
+                font-size:17px !important;
+            }
+
+            .app-subtitle{
+                font-size:9px !important;
+            }
+
+            .summary-card,
+            .subject-card{
+                padding:12px !important;
+            }
+
+            .summary-card strong{
+                font-size:17px !important;
+            }
+
+            .subject-stat strong{
+                font-size:17px !important;
+            }
+
+            #liveTimer{
+                font-size:27px !important;
+            }
+        }
+
+
+        /* ================================
+           DESKTOP
+        ================================= */
+
+        @media(min-width:701px){
+
+            #pageContainer{
+                max-width:900px;
+                padding:
+                    24px 20px 90px;
+            }
+
+            .subject-grid{
+                grid-template-columns:
+                    repeat(3,minmax(0,1fr)) !important;
+            }
+
+            .summary-grid{
+                grid-template-columns:
+                    repeat(4,minmax(0,1fr)) !important;
+            }
+        }
+
+
+        /* ================================
+           REDUCED MOTION
+        ================================= */
+
+        @media(prefers-reduced-motion:reduce){
+
+            *,
+            *::before,
+            *::after{
+
+                animation-duration:.01ms !important;
+                transition-duration:.01ms !important;
+            }
+
+            html{
+                scroll-behavior:auto !important;
+            }
+        }
+
+        `;
+
+        document.head.appendChild(style);
+    }
+
+
+    /* ---------------------------------------------------------
+       2. SAFE BUTTON POLISH
+    --------------------------------------------------------- */
+
+    function polishButtons(){
+
+        document
+            .querySelectorAll(
+                "#sideMenu button, " +
+                ".primary-button, " +
+                ".secondary-button, " +
+                ".text-button, " +
+                ".chapter-filter"
+            )
+            .forEach(btn=>{
+
+                if(!btn.dataset.nposPremiumBound){
+
+                    btn.dataset.nposPremiumBound="1";
+
+                    btn.addEventListener(
+                        "touchstart",
+                        ()=>{
+                            btn.style.webkitTapHighlightColor =
+                                "transparent";
+                        },
+                        {passive:true}
+                    );
+                }
+
+            });
+    }
+
+
+    /* ---------------------------------------------------------
+       3. PREVENT HORIZONTAL OVERFLOW ONLY
+    --------------------------------------------------------- */
+
+    function fixOverflow(){
+
+        const page =
+            document.getElementById("pageContainer");
+
+        if(page){
+
+            page.style.maxWidth =
+                window.innerWidth <= 700
+                    ? "100%"
+                    : "";
+
+            page.style.overflowX =
+                "clip";
+        }
+    }
+
+
+    /* ---------------------------------------------------------
+       4. KEEP CURRENT PAGE VISIBLE
+          WITHOUT TOUCHING NAVIGATION LOGIC
+    --------------------------------------------------------- */
+
+    function refresh(){
+
+        try{
+
+            injectCSS();
+            polishButtons();
+            fixOverflow();
+
+        }catch(err){
+
+            console.warn(
+                "NP-OS Premium UI:",
+                err
+            );
+        }
+    }
+
+
+    /* ---------------------------------------------------------
+       5. INITIALIZE
+    --------------------------------------------------------- */
+
+    function init(){
+
+        refresh();
+
+        setTimeout(refresh,500);
+        setTimeout(refresh,1500);
+        setTimeout(refresh,3000);
+
+        window.addEventListener(
+            "resize",
+            fixOverflow,
+            {passive:true}
+        );
+
+        console.log(
+            "✅ NP-OS — Mobile Premium UI v" +
+            VERSION +
+            " loaded."
+        );
+    }
+
+
+    if(document.readyState === "loading"){
+
+        document.addEventListener(
+            "DOMContentLoaded",
+            init,
+            {once:true}
+        );
+
+    }else{
+
+        init();
+    }
+
+
+    /* ---------------------------------------------------------
+       PUBLIC API
+    --------------------------------------------------------- */
+
+    window.NPOSFinalPremiumUI = {
+
+        version:VERSION,
+
+        refresh:refresh
+
+    };
+
+})();
+/* =========================================================
+   NP-OS — FINAL LIVE + CIRCULAR PROGRESS FIX
+   Version: 7.0.0
+
+   FIXES:
+   1. Remove duplicate OLD Live Status card
+   2. Keep NEW Premium Live Student Activity
+   3. Fix circular progress to EXACT real percentage
+   4. 13% = exactly 13% ring fill
+   5. Live ring updates automatically
+   6. No Firebase changes
+   7. No storage changes
+   8. No task logic changes
+   9. No scrollTo / scroll locking
+========================================================= */
+
+(function NPOS_FINAL_LIVE_AND_PROGRESS_FIX(){
+
+    "use strict";
+
+    if(window.__NPOS_FINAL_LIVE_AND_PROGRESS_FIX_V7) return;
+
+    window.__NPOS_FINAL_LIVE_AND_PROGRESS_FIX_V7 = true;
+
+
+    /* =====================================================
+       1. FINAL CSS
+    ===================================================== */
+
+    const style = document.createElement("style");
+
+    style.id = "nposFinalLiveProgressFixStyle";
+
+    style.textContent = `
+
+        /* =================================================
+           REMOVE OLD DUPLICATE LIVE STATUS
+           Keep the new premium live activity card.
+        ================================================= */
+
+        #liveStatusCard{
+            display:none !important;
+        }
+
+
+        /* =================================================
+           REAL CIRCULAR PROGRESS RING
+        ================================================= */
+
+        .progress-ring{
+
+            position:relative !important;
+
+            background:
+                conic-gradient(
+                    from -90deg,
+                    var(--np-red, #e5092f) 0%,
+                    var(--np-red, #e5092f) var(--np-progress, 0%),
+                    rgba(255,255,255,.075) var(--np-progress, 0%),
+                    rgba(255,255,255,.075) 100%
+                ) !important;
+
+            border-radius:50% !important;
+
+            transition:
+                background .35s ease !important;
+
+        }
+
+
+        /* =================================================
+           INNER CIRCLE
+           Keeps the ring clean / premium.
+        ================================================= */
+
+        .progress-ring::before{
+
+            content:"";
+
+            position:absolute;
+
+            inset:9px;
+
+            border-radius:50%;
+
+            background:
+                #111927;
+
+            z-index:0;
+
+        }
+
+
+        /* Keep percentage text above ring */
+
+        .progress-ring > *{
+
+            position:relative;
+
+            z-index:1;
+
+        }
+
+
+        /* =================================================
+           MOBILE RING
+        ================================================= */
+
+        @media(max-width:700px){
+
+            .progress-ring{
+
+                width:140px !important;
+                height:140px !important;
+
+            }
+
+            .progress-ring::before{
+                inset:8px;
+            }
+
+        }
+
+
+        @media(max-width:380px){
+
+            .progress-ring{
+
+                width:125px !important;
+                height:125px !important;
+
+            }
+
+            .progress-ring::before{
+                inset:7px;
+            }
+
+        }
+
+    `;
+
+    document.head.appendChild(style);
+
+
+    /* =====================================================
+       2. EXACT PROGRESS VALUE
+    ===================================================== */
+
+    function getRealProgress(){
+
+        try{
+
+            if(typeof progress === "function"){
+
+                const value = Number(progress());
+
+                if(Number.isFinite(value)){
+
+                    return Math.max(
+                        0,
+                        Math.min(100, value)
+                    );
+
+                }
+
+            }
+
+        }catch(error){
+
+            console.warn(
+                "NP-OS progress read failed:",
+                error
+            );
+
+        }
+
+        return 0;
+    }
+
+
+    /* =====================================================
+       3. UPDATE RING
+    ===================================================== */
+
+    function updateFinalProgressRing(){
+
+        try{
+
+            const rings =
+                document.querySelectorAll(
+                    ".progress-ring"
+                );
+
+            if(!rings.length) return;
+
+
+            const p =
+                getRealProgress();
+
+
+            rings.forEach(ring=>{
+
+                /* CSS variable controls exact fill */
+
+                ring.style.setProperty(
+                    "--np-progress",
+                    `${p}%`
+                );
+
+
+                /* Direct background fallback
+                   so no older CSS can override it */
+
+                ring.style.background =
+                    `conic-gradient(
+                        from -90deg,
+                        #e5092f 0%,
+                        #e5092f ${p}%,
+                        rgba(255,255,255,.075) ${p}%,
+                        rgba(255,255,255,.075) 100%
+                    )`;
+
+            });
+
+
+            /* Make every visible progress percentage
+               agree with the same real value */
+
+            const percentageIds = [
+
+                "todayProgressPercent",
+                "progressRingValue"
+
+            ];
+
+            percentageIds.forEach(id=>{
+
+                const el =
+                    document.getElementById(id);
+
+                if(el){
+
+                    el.textContent =
+                        `${p}%`;
+
+                }
+
+            });
+
+        }catch(error){
+
+            console.warn(
+                "NP-OS final circular progress update failed:",
+                error
+            );
+
+        }
+
+    }
+
+
+    /* =====================================================
+       4. INITIAL UPDATE
+    ===================================================== */
+
+    function init(){
+
+        updateFinalProgressRing();
+
+        /*
+           Small delayed refreshes because home()
+           may render the ring after page initialization.
+        */
+
+        setTimeout(
+            updateFinalProgressRing,
+            300
+        );
+
+        setTimeout(
+            updateFinalProgressRing,
+            1000
+        );
+
+        setTimeout(
+            updateFinalProgressRing,
+            2000
+        );
+
+    }
+
+
+    /* =====================================================
+       5. LIVE UPDATE LOOP
+    ===================================================== */
+
+    let lastProgress = -1;
+
+    function liveLoop(){
+
+        try{
+
+            const p =
+                getRealProgress();
+
+            /*
+               Only touch DOM when percentage changes.
+               This avoids unnecessary repainting.
+            */
+
+            if(p !== lastProgress){
+
+                lastProgress = p;
+
+                updateFinalProgressRing();
+
+            }
+
+        }catch(error){
+
+            console.warn(
+                "NP-OS live progress loop:",
+                error
+            );
+
+        }
+
+    }
+
+
+    /* =====================================================
+       6. START
+    ===================================================== */
+
+    if(
+        document.readyState ===
+        "loading"
+    ){
+
+        document.addEventListener(
+            "DOMContentLoaded",
+            init,
+            {once:true}
+        );
+
+    }else{
+
+        init();
+
+    }
+
+
+    /*
+       Existing NP-OS already refreshes every second,
+       but this makes the ring independently reliable.
+    */
+
+    setInterval(
+        liveLoop,
+        1000
+    );
+
+
+    /* =====================================================
+       PUBLIC API
+    ===================================================== */
+
+    window.NPOSFinalLiveProgressFix = {
+
+        version:"7.0.0",
+
+        refresh:updateFinalProgressRing,
+
+        getProgress:getRealProgress
+
+    };
+
+
+    console.log(
+        "✅ NP-OS Final Live + Circular Progress Fix v7.0.0 loaded."
+    );
+
+})();
+/* =========================================================
+   NP-OS — FINAL LIVE + EXACT PROGRESS RING
+   Version 9.0.0
+
+   FINAL FIX
+   ---------------------------------------------------------
+   • Removes duplicate OLD Live Status
+   • Keeps Premium Live Student Activity
+   • Fixes 45% hard-coded progress ring
+   • Uses REAL progress() value
+   • 13% = exactly 13%
+   • 50% = exactly 50%
+   • 100% = exactly 100%
+   • Mobile friendly
+   • No Firebase writes
+   • No storage changes
+   • No task logic changes
+   • No scroll manipulation
+========================================================= */
+
+(function NPOS_FINAL_LIVE_PROGRESS_V9(){
+
+    "use strict";
+
+    if(window.__NPOS_FINAL_LIVE_PROGRESS_V9) return;
+
+    window.__NPOS_FINAL_LIVE_PROGRESS_V9 = true;
+
+
+    /* =====================================================
+       1. FINAL CSS OVERRIDE
+    ===================================================== */
+
+    const style =
+        document.createElement("style");
+
+    style.id =
+        "nposFinalLiveProgressV9Style";
+
+    style.textContent = `
+
+        /* =================================================
+           REMOVE OLD DUPLICATE LIVE STATUS
+        ================================================= */
+
+        #liveStatusCard{
+            display:none !important;
+        }
+
+
+        /* =================================================
+           EXACT CIRCULAR PROGRESS
+           
+           IMPORTANT:
+           Original CSS has 45% hard-coded.
+           This rule overrides it.
+        ================================================= */
+
+        .progress-ring{
+
+            width:155px !important;
+            height:155px !important;
+
+            display:flex !important;
+
+            align-items:center !important;
+            justify-content:center !important;
+
+            position:relative !important;
+
+            border-radius:50% !important;
+
+            /*
+               JS writes the real percentage into
+               --npos-progress.
+            */
+
+            background:
+                conic-gradient(
+                    from -90deg,
+                    #e5092f 0%,
+                    #e5092f var(--npos-progress, 0%),
+                    rgba(255,255,255,.08)
+                        var(--npos-progress, 0%),
+                    rgba(255,255,255,.08)
+                        100%
+                ) !important;
+
+        }
+
+
+        /* =================================================
+           INNER CIRCLE
+
+           Original ::before uses var(--card).
+           Force a neutral dark center.
+        ================================================= */
+
+        .progress-ring::before{
+
+            content:"" !important;
+
+            position:absolute !important;
+
+            inset:10px !important;
+
+            width:auto !important;
+            height:auto !important;
+
+            border-radius:50% !important;
+
+            background:
+                #111927 !important;
+
+            z-index:0 !important;
+
+        }
+
+
+        /* =================================================
+           INNER CONTENT
+        ================================================= */
+
+        .progress-ring-inner{
+
+            position:relative !important;
+
+            z-index:2 !important;
+
+            text-align:center !important;
+
+        }
+
+
+        .progress-ring-inner strong{
+
+            display:block !important;
+
+            font-size:34px !important;
+
+            font-weight:900 !important;
+
+            color:#fff !important;
+
+        }
+
+
+        .progress-ring-inner span{
+
+            display:block !important;
+
+            color:#9ca9bd !important;
+
+        }
+
+
+        /* =================================================
+           MOBILE
+        ================================================= */
+
+        @media(max-width:700px){
+
+            .progress-ring{
+
+                width:140px !important;
+                height:140px !important;
+
+            }
+
+            .progress-ring::before{
+
+                inset:9px !important;
+
+            }
+
+        }
+
+
+        @media(max-width:380px){
+
+            .progress-ring{
+
+                width:125px !important;
+                height:125px !important;
+
+            }
+
+            .progress-ring::before{
+
+                inset:8px !important;
+
+            }
+
+        }
+
+    `;
+
+    document.head.appendChild(style);
+
+
+    /* =====================================================
+       2. GET REAL PROGRESS
+    ===================================================== */
+
+    function getProgress(){
+
+        try{
+
+            if(
+                typeof progress ===
+                "function"
+            ){
+
+                let p =
+                    Number(
+                        progress()
+                    );
+
+                if(
+                    Number.isFinite(p)
+                ){
+
+                    return Math.max(
+                        0,
+                        Math.min(
+                            100,
+                            p
+                        )
+                    );
+
+                }
+
+            }
+
+        }catch(error){
+
+            console.warn(
+                "NP-OS: progress() read failed",
+                error
+            );
+
+        }
+
+        return 0;
+
+    }
+
+
+    /* =====================================================
+       3. UPDATE RING
+    ===================================================== */
+
+    function updateRing(){
+
+        try{
+
+            const ring =
+                document.querySelector(
+                    ".progress-ring"
+                );
+
+            if(!ring){
+
+                return;
+
+            }
+
+
+            const p =
+                getProgress();
+
+
+            /*
+               Set CSS variable.
+            */
+
+            ring.style.setProperty(
+                "--npos-progress",
+                `${p}%`
+            );
+
+
+            /*
+               ALSO set inline background.
+
+               This is intentional:
+               it wins over the original CSS
+               which contains hard-coded 45%.
+            */
+
+            ring.style.setProperty(
+                "background",
+                `conic-gradient(
+                    from -90deg,
+                    #e5092f 0%,
+                    #e5092f ${p}%,
+                    rgba(255,255,255,.08) ${p}%,
+                    rgba(255,255,255,.08) 100%
+                )`,
+                "important"
+            );
+
+
+            /*
+               Keep percentage text synced.
+            */
+
+            const topPercent =
+                document.getElementById(
+                    "todayProgressPercent"
+                );
+
+            if(topPercent){
+
+                topPercent.textContent =
+                    `${p}%`;
+
+            }
+
+
+            const ringPercent =
+                document.getElementById(
+                    "progressRingValue"
+                );
+
+            if(ringPercent){
+
+                ringPercent.textContent =
+                    `${p}%`;
+
+            }
+
+        }catch(error){
+
+            console.warn(
+                "NP-OS: Final ring update failed",
+                error
+            );
+
+        }
+
+    }
+
+
+    /* =====================================================
+       4. INITIAL PAINT
+    ===================================================== */
+
+    function init(){
+
+        updateRing();
+
+
+        /*
+           Home() runs during app boot.
+           These delayed refreshes make sure the
+           ring gets painted AFTER home().
+        */
+
+        setTimeout(
+            updateRing,
+            100
+        );
+
+        setTimeout(
+            updateRing,
+            500
+        );
+
+        setTimeout(
+            updateRing,
+            1000
+        );
+
+        setTimeout(
+            updateRing,
+            2000
+        );
+
+    }
+
+
+    /* =====================================================
+       5. LIVE UPDATE
+    ===================================================== */
+
+    let last =
+        null;
+
+
+    setInterval(
+
+        function(){
+
+            const p =
+                getProgress();
+
+
+            /*
+               Only repaint when percentage
+               actually changes.
+            */
+
+            if(
+                p !== last
+            ){
+
+                last = p;
+
+                updateRing();
+
+            }
+
+        },
+
+        1000
+
+    );
+
+
+    /* =====================================================
+       6. START
+    ===================================================== */
+
+    if(
+        document.readyState ===
+        "loading"
+    ){
+
+        document.addEventListener(
+            "DOMContentLoaded",
+            init,
+            {once:true}
+        );
+
+    }else{
+
+        init();
+
+    }
+
+
+    /* =====================================================
+       PUBLIC API
+    ===================================================== */
+
+    window.NPOSFinalLiveProgressV9 = {
+
+        version:"9.0.0",
+
+        refresh:updateRing,
+
+        getProgress:getProgress
+
+    };
+
+
+    console.log(
+        "✅ NP-OS Final Live + Exact Progress v9.0.0 loaded."
+    );
+
+})();
+/* =========================================================
+   NP-OS — FINAL ERROR + LIVE + PROGRESS STABILITY PATCH
+   Version 10.0.0
+
+   Fixes:
+   • Firebase syllabus missing-array error
+   • subjectPage() .length crash
+   • Keeps V9 Live Status fix
+   • Keeps V9 exact Circular Progress
+   • No Firebase write
+   • No storage modification
+   • No scroll manipulation
+========================================================= */
+
+(function NPOS_FINAL_STABILITY_V10(){
+
+    "use strict";
+
+    if(window.__NPOS_FINAL_STABILITY_V10) return;
+
+    window.__NPOS_FINAL_STABILITY_V10 = true;
+
+
+    /* =====================================================
+       1. SAFE SYLLABUS NORMALIZER
+    ===================================================== */
+
+    function safeArray(value, fallback){
+
+        return Array.isArray(value)
+            ? value
+            : (
+                Array.isArray(fallback)
+                    ? fallback
+                    : []
+            );
+
+    }
+
+
+    function repairSyllabus(){
+
+        try{
+
+            if(
+                typeof S === "undefined"
+            ){
+
+                return;
+
+            }
+
+
+            /*
+               If cloud syllabus itself is invalid,
+               use the existing fallback.
+            */
+
+            if(
+                !S.syllabus ||
+                typeof S.syllabus !== "object"
+            ){
+
+                if(
+                    typeof FALLBACK_SYLLABUS !==
+                    "undefined"
+                ){
+
+                    S.syllabus =
+                        FALLBACK_SYLLABUS;
+
+                }else{
+
+                    S.syllabus = {};
+
+                }
+
+            }
+
+
+            const fallback =
+                typeof FALLBACK_SYLLABUS !==
+                "undefined"
+                    ? FALLBACK_SYLLABUS
+                    : {};
+
+
+            /*
+               Guarantee every array used by
+               subjectPage() actually exists.
+            */
+
+            S.syllabus.Physics =
+                safeArray(
+                    S.syllabus.Physics,
+                    fallback.Physics
+                );
+
+
+            S.syllabus["Physical Chemistry"] =
+                safeArray(
+                    S.syllabus["Physical Chemistry"],
+                    fallback["Physical Chemistry"]
+                );
+
+
+            S.syllabus["Inorganic Chemistry"] =
+                safeArray(
+                    S.syllabus["Inorganic Chemistry"],
+                    fallback["Inorganic Chemistry"]
+                );
+
+
+            S.syllabus["Organic Chemistry"] =
+                safeArray(
+                    S.syllabus["Organic Chemistry"],
+                    fallback["Organic Chemistry"]
+                );
+
+
+            S.syllabus.Botany =
+                safeArray(
+                    S.syllabus.Botany,
+                    fallback.Botany
+                );
+
+
+            S.syllabus.Zoology =
+                safeArray(
+                    S.syllabus.Zoology,
+                    fallback.Zoology
+                );
+
+
+        }catch(error){
+
+            console.warn(
+                "NP-OS: Syllabus safety repair failed.",
+                error
+            );
+
+        }
+
+    }
+
+
+    /* =====================================================
+       2. PROTECT subjectPage()
+
+       Repair syllabus BEFORE the original function runs.
+    ===================================================== */
+
+    if(
+        typeof window.subjectPage ===
+        "function"
+    ){
+
+        const originalSubjectPage =
+            window.subjectPage;
+
+
+        window.subjectPage =
+            function(){
+
+                repairSyllabus();
+
+                try{
+
+                    return originalSubjectPage.apply(
+                        this,
+                        arguments
+                    );
+
+                }catch(error){
+
+                    /*
+                       Last safety net.
+
+                       If Firebase sends malformed syllabus,
+                       don't let the whole dashboard crash.
+                    */
+
+                    console.warn(
+                        "NP-OS: Subject page rendering was safely skipped due to malformed syllabus.",
+                        error
+                    );
+
+                    return;
+
+                }
+
+            };
+
+    }
+
+
+    /* =====================================================
+       3. RUN ONCE IMMEDIATELY
+    ===================================================== */
+
+    repairSyllabus();
+
+
+    /* =====================================================
+       4. KEEP SYLLABUS SAFE AFTER FIREBASE REFRESH
+    ===================================================== */
+
+    setInterval(
+
+        function(){
+
+            repairSyllabus();
+
+        },
+
+        1000
+
+    );
+
+
+    /* =====================================================
+       5. RE-APPLY EXACT PROGRESS RING
+
+       V9 remains responsible for the main UI.
+       This is only an additional safety refresh.
+    ===================================================== */
+
+    function refreshRing(){
+
+        try{
+
+            const ring =
+                document.querySelector(
+                    ".progress-ring"
+                );
+
+            if(!ring){
+
+                return;
+
+            }
+
+
+            const p =
+                typeof progress ===
+                "function"
+                    ? Math.max(
+                        0,
+                        Math.min(
+                            100,
+                            Number(progress()) || 0
+                        )
+                    )
+                    : 0;
+
+
+            ring.style.setProperty(
+                "--npos-progress",
+                `${p}%`
+            );
+
+
+            ring.style.setProperty(
+                "background",
+                `conic-gradient(
+                    from -90deg,
+                    #e5092f 0%,
+                    #e5092f ${p}%,
+                    rgba(255,255,255,.08) ${p}%,
+                    rgba(255,255,255,.08) 100%
+                )`,
+                "important"
+            );
+
+
+            const value =
+                document.getElementById(
+                    "progressRingValue"
+                );
+
+            if(value){
+
+                value.textContent =
+                    `${p}%`;
+
+            }
+
+
+            const top =
+                document.getElementById(
+                    "todayProgressPercent"
+                );
+
+            if(top){
+
+                top.textContent =
+                    `${p}%`;
+
+            }
+
+
+        }catch(error){
+
+            console.warn(
+                "NP-OS: Final progress ring refresh failed.",
+                error
+            );
+
+        }
+
+    }
+
+
+    refreshRing();
+
+
+    setInterval(
+        refreshRing,
+        1000
+    );
+
+
+    console.log(
+        "✅ NP-OS Final Stability V10 loaded — syllabus error + exact progress protected."
+    );
+
+})();
