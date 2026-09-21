@@ -13565,3 +13565,2360 @@ if(
     );
 
 })();
+/* =========================================================
+   NP-OS — QUESTION PRACTICE
+   LIVE + ANALYTICS
+   VERSION 1.0.0
+
+   APPEND ONLY
+   ---------------------------------------------------------
+   READ ONLY
+   NO FIREBASE WRITE
+   NO STUDENT DATA MODIFICATION
+   NO MUTATION OBSERVER
+
+   ✓ Live Question Practice
+   ✓ Live countdown
+   ✓ Subject
+   ✓ Chemistry section
+   ✓ Biology Botany / Zoology
+   ✓ Chapter
+   ✓ Whole / Part
+   ✓ Topic
+   ✓ Target Questions
+   ✓ Full Marks
+   ✓ Time Limit
+   ✓ Time Remaining
+   ✓ Started At
+   ✓ Practice ID
+   ✓ Completed History
+   ✓ Score
+   ✓ Correct / Incorrect / Skip
+   ✓ Accuracy
+   ✓ Score %
+   ✓ Total Practice Time
+   ✓ Subject Analysis
+   ✓ Chapter Analysis
+   ✓ Recent History
+   ✓ Auto refresh
+========================================================= */
+
+(function NPOS_QUESTION_PRACTICE_FINAL(){
+
+    "use strict";
+
+
+    /* =====================================================
+       GUARD
+    ===================================================== */
+
+    if(
+        window.__NPOS_QUESTION_PRACTICE_FINAL
+    ){
+
+        console.warn(
+            "NP-OS Question Practice addon already loaded."
+        );
+
+        return;
+
+    }
+
+    window.__NPOS_QUESTION_PRACTICE_FINAL =
+        true;
+
+
+    const VERSION =
+        "1.0.0";
+
+    const REFRESH =
+        2000;
+
+
+    let timer =
+        null;
+
+
+    /* =====================================================
+       HELPERS
+    ===================================================== */
+
+    function num(value){
+
+        const n =
+            Number(value);
+
+        return Number.isFinite(n)
+            ? n
+            : 0;
+
+    }
+
+
+    function arr(value){
+
+        return Array.isArray(value)
+            ? value
+            : [];
+
+    }
+
+
+    function obj(value){
+
+        return (
+            value &&
+            typeof value === "object"
+        )
+            ? value
+            : {};
+
+    }
+
+
+    function esc(value){
+
+        const div =
+            document.createElement(
+                "div"
+            );
+
+        div.textContent =
+            String(
+                value ?? ""
+            );
+
+        return div.innerHTML;
+
+    }
+
+
+    function duration(seconds){
+
+        seconds =
+            Math.max(
+                0,
+                Math.floor(
+                    num(seconds)
+                )
+            );
+
+
+        const h =
+            Math.floor(
+                seconds / 3600
+            );
+
+
+        const m =
+            Math.floor(
+                (
+                    seconds % 3600
+                ) / 60
+            );
+
+
+        const s =
+            seconds % 60;
+
+
+        return (
+            String(h).padStart(2,"0") +
+            ":" +
+            String(m).padStart(2,"0") +
+            ":" +
+            String(s).padStart(2,"0")
+        );
+
+    }
+
+
+    function dateText(value){
+
+        if(!value){
+
+            return "—";
+
+        }
+
+
+        let date;
+
+
+        /*
+         * Supports both timestamp
+         * and ISO date.
+         */
+
+        if(
+            typeof value ===
+            "number"
+        ){
+
+            date =
+                new Date(
+                    value
+                );
+
+        }else{
+
+            date =
+                new Date(
+                    value
+                );
+
+        }
+
+
+        if(
+            Number.isNaN(
+                date.getTime()
+            )
+        ){
+
+            return "—";
+
+        }
+
+
+        return date.toLocaleString(
+            "en-IN",
+            {
+                dateStyle:
+                    "medium",
+                timeStyle:
+                    "short"
+            }
+        );
+
+    }
+
+
+    /* =====================================================
+       STUDENT DATA
+       -----------------------------------------------------
+       Existing NP-OS architecture already exposes
+       student's current Firebase data through cur().
+       ===================================================== */
+
+    function studentData(){
+
+        try{
+
+            if(
+                typeof cur ===
+                "function"
+            ){
+
+                const value =
+                    cur();
+
+                if(value){
+
+                    return value;
+
+                }
+
+            }
+
+        }catch(error){
+
+            console.warn(
+                "NP-OS QP: cur() failed.",
+                error
+            );
+
+        }
+
+
+        /*
+         * Fallback to common global
+         * state objects used by NP-OS.
+         */
+
+        try{
+
+            if(
+                window.NPOSFirebaseData
+            ){
+
+                return (
+                    window.NPOSFirebaseData
+                );
+
+            }
+
+        }catch(e){}
+
+
+        return null;
+
+    }
+
+
+    /* =====================================================
+       QUESTION PRACTICE DATA
+       ===================================================== */
+
+    function activePractice(){
+
+        const d =
+            studentData();
+
+
+        if(!d){
+
+            return null;
+
+        }
+
+
+        /*
+         * Primary location:
+         *
+         * studyData.questionPracticeActive
+         *
+         * because Firebase stores the
+         * complete NEET OS studyData.
+         */
+
+        if(
+            d.questionPracticeActive &&
+            typeof d.questionPracticeActive ===
+                "object"
+        ){
+
+            return (
+                d.questionPracticeActive
+            );
+
+        }
+
+
+        /*
+         * Some NP-OS normalizers may expose
+         * studyData separately.
+         */
+
+        if(
+            d.studyData &&
+            d.studyData.questionPracticeActive
+        ){
+
+            return (
+                d.studyData
+                    .questionPracticeActive
+            );
+
+        }
+
+
+        return null;
+
+    }
+
+
+    function practiceSessions(){
+
+        const d =
+            studentData();
+
+
+        if(!d){
+
+            return [];
+
+        }
+
+
+        if(
+            Array.isArray(
+                d.questionPracticeSessions
+            )
+        ){
+
+            return (
+                d.questionPracticeSessions
+            );
+
+        }
+
+
+        if(
+            d.studyData &&
+            Array.isArray(
+                d.studyData
+                    .questionPracticeSessions
+            )
+        ){
+
+            return (
+                d.studyData
+                    .questionPracticeSessions
+            );
+
+        }
+
+
+        return [];
+
+    }
+
+
+    /* =====================================================
+       LIVE REMAINING TIME
+       ===================================================== */
+
+    function remaining(active){
+
+        if(!active){
+
+            return 0;
+
+        }
+
+
+        const end =
+            num(
+                active.endAt
+            );
+
+
+        if(!end){
+
+            return 0;
+
+        }
+
+
+        return Math.max(
+            0,
+            Math.ceil(
+                (
+                    end -
+                    Date.now()
+                ) / 1000
+            )
+        );
+
+    }
+
+
+    /* =====================================================
+       TOTALS
+       ===================================================== */
+
+    function totals(){
+
+        const sessions =
+            practiceSessions();
+
+
+        const result = {
+
+            practices:0,
+
+            questions:0,
+
+            attempted:0,
+
+            correct:0,
+
+            incorrect:0,
+
+            skipped:0,
+
+            score:0,
+
+            fullMarks:0,
+
+            time:0
+
+        };
+
+
+        sessions.forEach(
+            session => {
+
+                if(!session){
+
+                    return;
+
+                }
+
+
+                result.practices +=
+                    1;
+
+
+                result.questions +=
+                    num(
+                        session.targetQuestions
+                    );
+
+
+                result.attempted +=
+                    num(
+                        session.attempted
+                    );
+
+
+                result.correct +=
+                    num(
+                        session.correct
+                    );
+
+
+                result.incorrect +=
+                    num(
+                        session.incorrect
+                    );
+
+
+                result.skipped +=
+                    num(
+                        session.skipped
+                    );
+
+
+                result.score +=
+                    num(
+                        session.score
+                    );
+
+
+                result.fullMarks +=
+                    num(
+                        session.fullMarks
+                    );
+
+
+                result.time +=
+                    num(
+                        session.timeUsedSeconds
+                    );
+
+            }
+        );
+
+
+        result.accuracy =
+            result.attempted > 0
+                ? (
+                    result.correct /
+                    result.attempted
+                ) * 100
+                : 0;
+
+
+        result.scorePercentage =
+            result.fullMarks > 0
+                ? (
+                    result.score /
+                    result.fullMarks
+                ) * 100
+                : 0;
+
+
+        return result;
+
+    }
+
+
+    /* =====================================================
+       SUBJECT ANALYSIS
+       ===================================================== */
+
+    function subjectAnalysis(){
+
+        const sessions =
+            practiceSessions();
+
+
+        const map = {};
+
+
+        sessions.forEach(
+            session => {
+
+                if(!session){
+
+                    return;
+
+                }
+
+
+                let subject =
+                    session.subject ||
+                    "Unknown";
+
+
+                /*
+                 * Biology is displayed
+                 * with Botany / Zoology.
+                 */
+
+                if(
+                    subject ===
+                    "Biology" &&
+                    session.biologySection
+                ){
+
+                    subject =
+                        "Biology • " +
+                        session.biologySection;
+
+                }
+
+
+                if(
+                    !map[subject]
+                ){
+
+                    map[subject] = {
+
+                        practices:0,
+
+                        questions:0,
+
+                        attempted:0,
+
+                        correct:0,
+
+                        incorrect:0,
+
+                        skipped:0,
+
+                        score:0,
+
+                        fullMarks:0,
+
+                        time:0
+
+                    };
+
+                }
+
+
+                const x =
+                    map[subject];
+
+
+                x.practices++;
+
+                x.questions +=
+                    num(
+                        session.targetQuestions
+                    );
+
+                x.attempted +=
+                    num(
+                        session.attempted
+                    );
+
+                x.correct +=
+                    num(
+                        session.correct
+                    );
+
+                x.incorrect +=
+                    num(
+                        session.incorrect
+                    );
+
+                x.skipped +=
+                    num(
+                        session.skipped
+                    );
+
+                x.score +=
+                    num(
+                        session.score
+                    );
+
+                x.fullMarks +=
+                    num(
+                        session.fullMarks
+                    );
+
+                x.time +=
+                    num(
+                        session.timeUsedSeconds
+                    );
+
+            }
+        );
+
+
+        return map;
+
+    }
+
+
+    /* =====================================================
+       CHAPTER ANALYSIS
+       ===================================================== */
+
+    function chapterAnalysis(){
+
+        const sessions =
+            practiceSessions();
+
+
+        const map = {};
+
+
+        sessions.forEach(
+            session => {
+
+                if(!session){
+
+                    return;
+
+                }
+
+
+                const chapter =
+                    session.chapter ||
+                    "Unknown Chapter";
+
+
+                let subject =
+                    session.subject ||
+                    "";
+
+
+                if(
+                    subject ===
+                    "Biology" &&
+                    session.biologySection
+                ){
+
+                    subject =
+                        session.biologySection;
+
+                }
+
+
+                const key =
+                    subject +
+                    " • " +
+                    chapter;
+
+
+                if(
+                    !map[key]
+                ){
+
+                    map[key] = {
+
+                        subject,
+
+                        chapter,
+
+                        practices:0,
+
+                        questions:0,
+
+                        attempted:0,
+
+                        correct:0,
+
+                        incorrect:0,
+
+                        skipped:0,
+
+                        score:0,
+
+                        fullMarks:0,
+
+                        time:0
+
+                    };
+
+                }
+
+
+                const x =
+                    map[key];
+
+
+                x.practices++;
+
+                x.questions +=
+                    num(
+                        session.targetQuestions
+                    );
+
+                x.attempted +=
+                    num(
+                        session.attempted
+                    );
+
+                x.correct +=
+                    num(
+                        session.correct
+                    );
+
+                x.incorrect +=
+                    num(
+                        session.incorrect
+                    );
+
+                x.skipped +=
+                    num(
+                        session.skipped
+                    );
+
+                x.score +=
+                    num(
+                        session.score
+                    );
+
+                x.fullMarks +=
+                    num(
+                        session.fullMarks
+                    );
+
+                x.time +=
+                    num(
+                        session.timeUsedSeconds
+                    );
+
+            }
+        );
+
+
+        return map;
+
+    }
+
+
+    /* =====================================================
+       STYLES
+       ===================================================== */
+
+    function addStyles(){
+
+        if(
+            document.getElementById(
+                "nposQuestionPracticeStyle"
+            )
+        ){
+
+            return;
+
+        }
+
+
+        const style =
+            document.createElement(
+                "style"
+            );
+
+
+        style.id =
+            "nposQuestionPracticeStyle";
+
+
+        style.textContent = `
+
+            #nposQuestionPracticePanel,
+            #nposQuestionPracticeAnalytics{
+
+                margin-top:18px;
+
+                padding:18px;
+
+                border-radius:18px;
+
+                background:
+                    rgba(255,255,255,.035);
+
+                border:
+                    1px solid
+                    rgba(255,255,255,.08);
+
+                box-sizing:border-box;
+
+            }
+
+
+            .npos-qp-title{
+
+                display:flex;
+
+                justify-content:
+                    space-between;
+
+                align-items:center;
+
+                gap:12px;
+
+                flex-wrap:wrap;
+
+                margin-bottom:14px;
+
+            }
+
+
+            .npos-qp-title h3{
+
+                margin:0;
+
+                font-size:18px;
+
+                font-weight:900;
+
+            }
+
+
+            .npos-qp-live{
+
+                display:inline-flex;
+
+                align-items:center;
+
+                gap:6px;
+
+                padding:5px 9px;
+
+                border-radius:999px;
+
+                background:
+                    rgba(255,70,70,.14);
+
+                border:
+                    1px solid
+                    rgba(255,70,70,.35);
+
+                font-size:10px;
+
+                font-weight:900;
+
+                letter-spacing:.6px;
+
+            }
+
+
+            .npos-qp-dot{
+
+                width:7px;
+
+                height:7px;
+
+                border-radius:50%;
+
+                background:#ff5555;
+
+                animation:
+                    nposQPpulse 1.2s infinite;
+
+            }
+
+
+            @keyframes nposQPpulse{
+
+                50%{
+
+                    opacity:.35;
+
+                }
+
+            }
+
+
+            .npos-qp-grid{
+
+                display:grid;
+
+                grid-template-columns:
+                    repeat(
+                        auto-fit,
+                        minmax(
+                            150px,
+                            1fr
+                        )
+                    );
+
+                gap:9px;
+
+            }
+
+
+            .npos-qp-stat{
+
+                padding:11px;
+
+                border-radius:12px;
+
+                background:
+                    rgba(255,255,255,.045);
+
+                border:
+                    1px solid
+                    rgba(255,255,255,.06);
+
+            }
+
+
+            .npos-qp-stat small{
+
+                display:block;
+
+                font-size:10px;
+
+                opacity:.55;
+
+                margin-bottom:4px;
+
+            }
+
+
+            .npos-qp-stat strong{
+
+                font-size:16px;
+
+                font-weight:900;
+
+            }
+
+
+            .npos-qp-timer{
+
+                font-size:34px;
+
+                font-weight:900;
+
+                text-align:center;
+
+                margin:16px 0;
+
+                letter-spacing:2px;
+
+            }
+
+
+            .npos-qp-warning{
+
+                animation:
+                    nposQPtimerWarning 1s infinite;
+
+            }
+
+
+            @keyframes nposQPtimerWarning{
+
+                50%{
+
+                    opacity:.4;
+
+                }
+
+            }
+
+
+            .npos-qp-meta{
+
+                line-height:1.65;
+
+                font-size:13px;
+
+                opacity:.82;
+
+                margin-bottom:14px;
+
+            }
+
+
+            .npos-qp-list{
+
+                display:grid;
+
+                gap:8px;
+
+                margin-top:10px;
+
+            }
+
+
+            .npos-qp-item{
+
+                padding:11px;
+
+                border-radius:11px;
+
+                background:
+                    rgba(255,255,255,.035);
+
+                border:
+                    1px solid
+                    rgba(255,255,255,.055);
+
+            }
+
+
+            .npos-qp-item-top{
+
+                display:flex;
+
+                justify-content:
+                    space-between;
+
+                align-items:flex-start;
+
+                gap:10px;
+
+                flex-wrap:wrap;
+
+                font-weight:800;
+
+            }
+
+
+            .npos-qp-muted{
+
+                margin-top:5px;
+
+                font-size:10px;
+
+                opacity:.58;
+
+                line-height:1.55;
+
+            }
+
+
+            .npos-qp-section{
+
+                margin-top:20px;
+
+            }
+
+
+            .npos-qp-section-title{
+
+                font-size:13px;
+
+                font-weight:900;
+
+                margin-bottom:8px;
+
+            }
+
+
+            .npos-qp-empty{
+
+                opacity:.5;
+
+                font-size:12px;
+
+            }
+
+
+            .npos-qp-score{
+
+                font-weight:900;
+
+            }
+
+
+            @media(max-width:600px){
+
+                #nposQuestionPracticePanel,
+                #nposQuestionPracticeAnalytics{
+
+                    padding:14px;
+
+                }
+
+                .npos-qp-timer{
+
+                    font-size:27px;
+
+                }
+
+            }
+
+        `;
+
+
+        document.head.appendChild(
+            style
+        );
+
+    }
+
+
+    /* =====================================================
+       FIND TARGET CONTAINERS
+       ===================================================== */
+
+    function findHome(){
+
+        return (
+            document.getElementById(
+                "homePage"
+            ) ||
+            document.querySelector(
+                '[data-section="home"]'
+            ) ||
+            document.querySelector(
+                ".page.active-page"
+            )
+        );
+
+    }
+
+
+    function findStats(){
+
+        return (
+            document.getElementById(
+                "statsPage"
+            ) ||
+            document.getElementById(
+                "statsSection"
+            ) ||
+            document.querySelector(
+                '[data-section="stats"]'
+            )
+        );
+
+    }
+
+
+    /* =====================================================
+       LIVE PANEL
+       ===================================================== */
+
+    function renderLive(){
+
+        let panel =
+            document.getElementById(
+                "nposQuestionPracticePanel"
+            );
+
+
+        const active =
+            activePractice();
+
+
+        /*
+         * If there is no active practice,
+         * show a compact waiting state.
+         */
+
+        if(!panel){
+
+            const home =
+                findHome();
+
+
+            if(!home){
+
+                return;
+
+            }
+
+
+            panel =
+                document.createElement(
+                    "section"
+                );
+
+
+            panel.id =
+                "nposQuestionPracticePanel";
+
+
+            /*
+             * Put it near the top.
+             */
+
+            home.insertBefore(
+                panel,
+                home.firstElementChild
+            );
+
+        }
+
+
+        if(!active){
+
+            panel.innerHTML = `
+
+                <div class="npos-qp-title">
+
+                    <h3>
+                        ❓ Question Practice
+                    </h3>
+
+                    <span
+                        class="npos-qp-live"
+                        style="
+                            background:
+                                rgba(255,255,255,.05);
+                            border-color:
+                                rgba(255,255,255,.08);
+                        "
+                    >
+                        ● STANDBY
+                    </span>
+
+                </div>
+
+                <div
+                    class="npos-qp-empty"
+                >
+                    No live Question Practice
+                    session at the moment.
+                </div>
+
+            `;
+
+            return;
+
+        }
+
+
+        const left =
+            remaining(
+                active
+            );
+
+
+        const warning =
+            left <= 60
+                ? "npos-qp-warning"
+                : "";
+
+
+        panel.innerHTML = `
+
+            <div class="npos-qp-title">
+
+                <h3>
+                    ❓ Question Practice
+                </h3>
+
+                <span
+                    class="npos-qp-live"
+                >
+                    <span
+                        class="npos-qp-dot"
+                    ></span>
+
+                    LIVE
+                </span>
+
+            </div>
+
+
+            <div class="npos-qp-meta">
+
+                <b>
+                    ${esc(
+                        active.subject ||
+                        "—"
+                    )}
+                </b>
+
+                ${
+                    active.chemistryPart
+                        ? `
+                            <br>
+                            ${esc(
+                                active.chemistryPart
+                            )}
+                          `
+                        : ""
+                }
+
+                <br>
+
+                Chapter:
+                <b>
+                    ${esc(
+                        active.chapter ||
+                        "—"
+                    )}
+                </b>
+
+                <br>
+
+                ${
+                    active.scope ===
+                    "part"
+                        ? "Part Chapter"
+                        : "Whole Chapter"
+                }
+
+                ${
+                    active.topic
+                        ? `
+                            • Topic:
+                            ${esc(
+                                active.topic
+                            )}
+                          `
+                        : ""
+                }
+
+            </div>
+
+
+            <div
+                class="
+                    npos-qp-timer
+                    ${warning}
+                "
+                id="nposQPCountdown"
+            >
+                ${duration(left)}
+            </div>
+
+
+            <div class="npos-qp-grid">
+
+                <div
+                    class="npos-qp-stat"
+                >
+
+                    <small>
+                        Target Questions
+                    </small>
+
+                    <strong>
+                        ${num(
+                            active.targetQuestions
+                        )}
+                    </strong>
+
+                </div>
+
+
+                <div
+                    class="npos-qp-stat"
+                >
+
+                    <small>
+                        Full Marks
+                    </small>
+
+                    <strong>
+                        ${num(
+                            active.fullMarks
+                        )}
+                    </strong>
+
+                </div>
+
+
+                <div
+                    class="npos-qp-stat"
+                >
+
+                    <small>
+                        Time Limit
+                    </small>
+
+                    <strong>
+                        ${duration(
+                            active.timeLimitSeconds
+                        )}
+                    </strong>
+
+                </div>
+
+
+                <div
+                    class="npos-qp-stat"
+                >
+
+                    <small>
+                        Started
+                    </small>
+
+                    <strong>
+                        ${esc(
+                            dateText(
+                                active.startedAt
+                            )
+                        )}
+                    </strong>
+
+                </div>
+
+            </div>
+
+
+            <div
+                class="npos-qp-muted"
+            >
+
+                Session:
+                ${esc(
+                    active.id ||
+                    "—"
+                )}
+
+            </div>
+
+        `;
+
+    }
+
+
+    /* =====================================================
+       ANALYTICS PANEL
+       ===================================================== */
+
+    function renderAnalytics(){
+
+        let panel =
+            document.getElementById(
+                "nposQuestionPracticeAnalytics"
+            );
+
+
+        const stats =
+            findStats();
+
+
+        if(!stats){
+
+            return;
+
+        }
+
+
+        if(!panel){
+
+            panel =
+                document.createElement(
+                    "section"
+                );
+
+
+            panel.id =
+                "nposQuestionPracticeAnalytics";
+
+
+            stats.appendChild(
+                panel
+            );
+
+        }
+
+
+        const t =
+            totals();
+
+
+        const subjects =
+            subjectAnalysis();
+
+
+        const chapters =
+            chapterAnalysis();
+
+
+        const sessions =
+            practiceSessions();
+
+
+        const subjectHTML =
+            Object.entries(
+                subjects
+            ).map(
+                (
+                    [
+                        subject,
+                        x
+                    ]
+                ) => {
+
+                    const accuracy =
+                        x.attempted > 0
+                            ? (
+                                x.correct /
+                                x.attempted
+                            ) * 100
+                            : 0;
+
+
+                    return `
+
+                        <div
+                            class="npos-qp-item"
+                        >
+
+                            <div
+                                class="
+                                    npos-qp-item-top
+                                "
+                            >
+
+                                <span>
+                                    ${esc(
+                                        subject
+                                    )}
+                                </span>
+
+                                <span
+                                    class="
+                                        npos-qp-score
+                                    "
+                                >
+                                    ${x.score}
+                                    /
+                                    ${x.fullMarks}
+                                </span>
+
+                            </div>
+
+                            <div
+                                class="npos-qp-muted"
+                            >
+
+                                Practices:
+                                ${x.practices}
+
+                                • Questions:
+                                ${x.questions}
+
+                                • Attempted:
+                                ${x.attempted}
+
+                                • Correct:
+                                ${x.correct}
+
+                                • Incorrect:
+                                ${x.incorrect}
+
+                                • Skip:
+                                ${x.skipped}
+
+                                • Accuracy:
+                                ${accuracy.toFixed(2)}%
+
+                                • Time:
+                                ${duration(
+                                    x.time
+                                )}
+
+                            </div>
+
+                        </div>
+
+                    `;
+
+                }
+            ).join("");
+
+
+        const chapterHTML =
+            Object.values(
+                chapters
+            )
+            .sort(
+                (
+                    a,
+                    b
+                ) =>
+                    b.questions -
+                    a.questions
+            )
+            .slice(
+                0,
+                20
+            )
+            .map(
+                x => {
+
+                    const accuracy =
+                        x.attempted > 0
+                            ? (
+                                x.correct /
+                                x.attempted
+                            ) * 100
+                            : 0;
+
+
+                    return `
+
+                        <div
+                            class="npos-qp-item"
+                        >
+
+                            <div
+                                class="
+                                    npos-qp-item-top
+                                "
+                            >
+
+                                <span>
+
+                                    ${esc(
+                                        x.subject
+                                    )}
+
+                                    •
+                                    ${esc(
+                                        x.chapter
+                                    )}
+
+                                </span>
+
+                                <span
+                                    class="
+                                        npos-qp-score
+                                    "
+                                >
+
+                                    ${x.score}
+                                    /
+                                    ${x.fullMarks}
+
+                                </span>
+
+                            </div>
+
+
+                            <div
+                                class="npos-qp-muted"
+                            >
+
+                                ${x.questions}
+                                Q
+
+                                •
+                                ${x.correct}
+                                Correct
+
+                                •
+                                ${x.incorrect}
+                                Incorrect
+
+                                •
+                                ${x.skipped}
+                                Skip
+
+                                •
+                                ${accuracy.toFixed(2)}%
+                                Accuracy
+
+                            </div>
+
+                        </div>
+
+                    `;
+
+                }
+            ).join("");
+
+
+        const recent =
+            sessions
+                .slice()
+                .reverse()
+                .slice(
+                    0,
+                    15
+                );
+
+
+        const historyHTML =
+            recent.map(
+                session => `
+
+                    <div
+                        class="npos-qp-item"
+                    >
+
+                        <div
+                            class="
+                                npos-qp-item-top
+                            "
+                        >
+
+                            <span>
+
+                                ${esc(
+                                    session.subject ||
+                                    "—"
+                                )}
+
+                            </span>
+
+                            <span
+                                class="
+                                    npos-qp-score
+                                "
+                            >
+
+                                ${num(
+                                    session.score
+                                )}
+                                /
+                                ${num(
+                                    session.fullMarks
+                                )}
+
+                            </span>
+
+                        </div>
+
+
+                        <div
+                            class="npos-qp-muted"
+                        >
+
+                            ${esc(
+                                session.chapter ||
+                                "—"
+                            )}
+
+                            ${
+                                session.topic
+                                    ? `
+                                        •
+                                        ${esc(
+                                            session.topic
+                                        )}
+                                      `
+                                    : ""
+                            }
+
+                            <br>
+
+                            Target:
+                            ${num(
+                                session.targetQuestions
+                            )}
+
+                            • Attempted:
+                            ${num(
+                                session.attempted
+                            )}
+
+                            • Correct:
+                            ${num(
+                                session.correct
+                            )}
+
+                            • Incorrect:
+                            ${num(
+                                session.incorrect
+                            )}
+
+                            • Skip:
+                            ${num(
+                                session.skipped
+                            )}
+
+                            • Accuracy:
+                            ${num(
+                                session.accuracy
+                            ).toFixed(2)}%
+
+                            <br>
+
+                            Time:
+                            ${duration(
+                                session.timeUsedSeconds
+                            )}
+
+                            •
+                            ${esc(
+                                dateText(
+                                    session.completedAt ||
+                                    session.startedAt
+                                )
+                            )}
+
+                        </div>
+
+                    </div>
+
+                `
+            ).join("");
+
+
+        panel.innerHTML = `
+
+            <div class="npos-qp-title">
+
+                <h3>
+                    ❓ Question Practice
+                    Analytics
+                </h3>
+
+            </div>
+
+
+            <div class="npos-qp-grid">
+
+                <div
+                    class="npos-qp-stat"
+                >
+
+                    <small>
+                        Total Practices
+                    </small>
+
+                    <strong>
+                        ${t.practices}
+                    </strong>
+
+                </div>
+
+
+                <div
+                    class="npos-qp-stat"
+                >
+
+                    <small>
+                        Questions
+                    </small>
+
+                    <strong>
+                        ${t.questions}
+                    </strong>
+
+                </div>
+
+
+                <div
+                    class="npos-qp-stat"
+                >
+
+                    <small>
+                        Attempted
+                    </small>
+
+                    <strong>
+                        ${t.attempted}
+                    </strong>
+
+                </div>
+
+
+                <div
+                    class="npos-qp-stat"
+                >
+
+                    <small>
+                        Correct
+                    </small>
+
+                    <strong>
+                        ${t.correct}
+                    </strong>
+
+                </div>
+
+
+                <div
+                    class="npos-qp-stat"
+                >
+
+                    <small>
+                        Incorrect
+                    </small>
+
+                    <strong>
+                        ${t.incorrect}
+                    </strong>
+
+                </div>
+
+
+                <div
+                    class="npos-qp-stat"
+                >
+
+                    <small>
+                        Skip
+                    </small>
+
+                    <strong>
+                        ${t.skipped}
+                    </strong>
+
+                </div>
+
+
+                <div
+                    class="npos-qp-stat"
+                >
+
+                    <small>
+                        Total Score
+                    </small>
+
+                    <strong>
+                        ${t.score}
+                        /
+                        ${t.fullMarks}
+                    </strong>
+
+                </div>
+
+
+                <div
+                    class="npos-qp-stat"
+                >
+
+                    <small>
+                        Accuracy
+                    </small>
+
+                    <strong>
+                        ${t.accuracy.toFixed(2)}%
+                    </strong>
+
+                </div>
+
+
+                <div
+                    class="npos-qp-stat"
+                >
+
+                    <small>
+                        Score %
+                    </small>
+
+                    <strong>
+                        ${t.scorePercentage.toFixed(2)}%
+                    </strong>
+
+                </div>
+
+
+                <div
+                    class="npos-qp-stat"
+                >
+
+                    <small>
+                        Practice Time
+                    </small>
+
+                    <strong>
+                        ${duration(
+                            t.time
+                        )}
+                    </strong>
+
+                </div>
+
+            </div>
+
+
+            <div
+                class="npos-qp-section"
+            >
+
+                <div
+                    class="
+                        npos-qp-section-title
+                    "
+                >
+                    📚 Subject Analysis
+                </div>
+
+
+                <div
+                    class="npos-qp-list"
+                >
+
+                    ${
+                        subjectHTML ||
+                        `
+                            <div
+                                class="
+                                    npos-qp-empty
+                                "
+                            >
+                                No Question Practice
+                                data yet.
+                            </div>
+                        `
+                    }
+
+                </div>
+
+            </div>
+
+
+            <div
+                class="npos-qp-section"
+            >
+
+                <div
+                    class="
+                        npos-qp-section-title
+                    "
+                >
+                    🏷️ Chapter Analysis
+                </div>
+
+
+                <div
+                    class="npos-qp-list"
+                >
+
+                    ${
+                        chapterHTML ||
+                        `
+                            <div
+                                class="
+                                    npos-qp-empty
+                                "
+                            >
+                                No chapter data yet.
+                            </div>
+                        `
+                    }
+
+                </div>
+
+            </div>
+
+
+            <div
+                class="npos-qp-section"
+            >
+
+                <div
+                    class="
+                        npos-qp-section-title
+                    "
+                >
+                    🕘 Recent Practice History
+                </div>
+
+
+                <div
+                    class="npos-qp-list"
+                >
+
+                    ${
+                        historyHTML ||
+                        `
+                            <div
+                                class="
+                                    npos-qp-empty
+                                "
+                            >
+                                No completed practice
+                                yet.
+                            </div>
+                        `
+                    }
+
+                </div>
+
+            </div>
+
+
+            <div
+                class="npos-qp-muted"
+                style="margin-top:14px"
+            >
+
+                Read-only • Firebase cloud data •
+                Auto refreshed every 2 seconds
+
+            </div>
+
+        `;
+
+    }
+
+
+    /* =====================================================
+       LIVE TIMER ONLY
+       -----------------------------------------------------
+       Avoid rebuilding the whole panel every second
+       when only countdown changed.
+       ===================================================== */
+
+    function updateCountdown(){
+
+        const active =
+            activePractice();
+
+
+        const el =
+            document.getElementById(
+                "nposQPCountdown"
+            );
+
+
+        if(
+            !active ||
+            !el
+        ){
+
+            return;
+
+        }
+
+
+        const left =
+            remaining(
+                active
+            );
+
+
+        el.textContent =
+            duration(
+                left
+            );
+
+
+        if(
+            left <= 60
+        ){
+
+            el.classList.add(
+                "npos-qp-warning"
+            );
+
+        }else{
+
+            el.classList.remove(
+                "npos-qp-warning"
+            );
+
+        }
+
+    }
+
+
+    /* =====================================================
+       MAIN REFRESH
+       ===================================================== */
+
+    function refresh(){
+
+        try{
+
+            renderLive();
+
+        }catch(error){
+
+            console.warn(
+                "NP-OS QP live render error:",
+                error
+            );
+
+        }
+
+
+        try{
+
+            renderAnalytics();
+
+        }catch(error){
+
+            console.warn(
+                "NP-OS QP analytics render error:",
+                error
+            );
+
+        }
+
+
+        updateCountdown();
+
+    }
+
+
+    /* =====================================================
+       START
+       ===================================================== */
+
+    function start(){
+
+        addStyles();
+
+        refresh();
+
+
+        clearInterval(
+            timer
+        );
+
+
+        timer =
+            setInterval(
+                refresh,
+                REFRESH
+            );
+
+
+        console.log(
+            "✅ NP-OS — Question Practice Live + Analytics v" +
+            VERSION +
+            " loaded."
+        );
+
+    }
+
+
+    /* =====================================================
+       PUBLIC API
+       ===================================================== */
+
+    window.NPOSQuestionPractice = {
+
+        version:
+            VERSION,
+
+        refresh,
+
+        active:
+            activePractice,
+
+        sessions:
+            practiceSessions,
+
+        totals,
+
+        subjects:
+            subjectAnalysis,
+
+        chapters:
+            chapterAnalysis
+
+    };
+
+
+    /* =====================================================
+       INIT
+       ===================================================== */
+
+    if(
+        document.readyState ===
+        "loading"
+    ){
+
+        document.addEventListener(
+            "DOMContentLoaded",
+            start,
+            {
+                once:true
+            }
+        );
+
+    }else{
+
+        start();
+
+    }
+
+
+})();
