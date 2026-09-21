@@ -15922,3 +15922,922 @@ if(
 
 
 })();
+/* ============================================================
+   NP-OS — HOME STREAK DIRECT FIX v2
+   ------------------------------------------------------------
+   ONLY FIXES:
+   ✓ HOME SCREEN STREAK
+   ✓ Uses existing NP-OS getHistory()
+   ✓ Uses existing createSnapshot(data)
+   ✓ Uses existing getStudyDayKey()
+   ✓ Uses existing dateKey()/parseDate() when available
+   ✓ 03:00 study-day compatible
+   ✓ Does NOT write Firebase
+   ✓ Does NOT modify other analytics
+   ✓ Does NOT modify subject analysis
+   ============================================================ */
+
+(function NPOS_HOME_STREAK_DIRECT_FIX_V2(){
+
+    "use strict";
+
+    if(window.__NPOS_HOME_STREAK_DIRECT_FIX_V2){
+
+        console.warn(
+            "NP-OS Home Streak Direct Fix v2 already loaded."
+        );
+
+        return;
+
+    }
+
+    window.__NPOS_HOME_STREAK_DIRECT_FIX_V2 = true;
+
+
+    /* ========================================================
+       HELPERS
+    ======================================================== */
+
+    function num(value){
+
+        const n = Number(value);
+
+        return Number.isFinite(n)
+            ? n
+            : 0;
+
+    }
+
+
+    function getCurrent(){
+
+        try{
+
+            if(
+                typeof data !== "undefined" &&
+                data
+            ){
+
+                return data;
+
+            }
+
+        }catch(e){}
+
+        return null;
+
+    }
+
+
+    /* ========================================================
+       STUDY DAY
+    ======================================================== */
+
+    function getStudyDay(){
+
+        try{
+
+            if(
+                typeof getStudyDayKey ===
+                "function"
+            ){
+
+                return getStudyDayKey();
+
+            }
+
+        }catch(e){}
+
+
+        /*
+         * Exact fallback:
+         * 00:00–02:59 belongs to previous study day.
+         */
+
+        const d = new Date();
+
+        if(d.getHours() < 3){
+
+            d.setDate(
+                d.getDate() - 1
+            );
+
+        }
+
+        return formatDate(d);
+
+    }
+
+
+    function formatDate(d){
+
+        return (
+            d.getFullYear() +
+            "-" +
+            String(
+                d.getMonth() + 1
+            ).padStart(2,"0") +
+            "-" +
+            String(
+                d.getDate()
+            ).padStart(2,"0")
+        );
+
+    }
+
+
+    function previousDay(key){
+
+        try{
+
+            if(
+                typeof parseDate ===
+                "function" &&
+                typeof dateKey ===
+                "function"
+            ){
+
+                const d =
+                    parseDate(key);
+
+                d.setDate(
+                    d.getDate() - 1
+                );
+
+                return dateKey(d);
+
+            }
+
+        }catch(e){}
+
+
+        const parts =
+            String(key)
+                .split("-")
+                .map(Number);
+
+        const d =
+            new Date(
+                parts[0],
+                parts[1] - 1,
+                parts[2]
+            );
+
+        d.setDate(
+            d.getDate() - 1
+        );
+
+        return formatDate(d);
+
+    }
+
+
+    /* ========================================================
+       GET HISTORY
+    ======================================================== */
+
+    function getAllHistory(){
+
+        const records = [];
+
+
+        /*
+         * PRIMARY:
+         * Existing NP-OS getHistory()
+         */
+
+        try{
+
+            if(
+                typeof getHistory ===
+                "function"
+            ){
+
+                const history =
+                    getHistory();
+
+                if(
+                    Array.isArray(history)
+                ){
+
+                    records.push(
+                        ...history
+                    );
+
+                }
+
+            }
+
+        }catch(e){}
+
+
+        /*
+         * FALLBACK:
+         * Direct localStorage
+         */
+
+        try{
+
+            const raw =
+                localStorage.getItem(
+                    "neetOSHistory"
+                );
+
+            if(raw){
+
+                const parsed =
+                    JSON.parse(raw);
+
+                if(
+                    Array.isArray(parsed)
+                ){
+
+                    records.push(
+                        ...parsed
+                    );
+
+                }
+
+            }
+
+        }catch(e){}
+
+
+        return records;
+
+    }
+
+
+    /* ========================================================
+       CURRENT SNAPSHOT
+    ======================================================== */
+
+    function getCurrentSnapshot(){
+
+        try{
+
+            const current =
+                getCurrent();
+
+            if(!current)
+                return null;
+
+
+            /*
+             * Use existing NP-OS snapshot
+             */
+
+            if(
+                typeof createSnapshot ===
+                "function"
+            ){
+
+                const snapshot =
+                    createSnapshot(
+                        current
+                    );
+
+                if(snapshot)
+                    return snapshot;
+
+            }
+
+
+            /*
+             * Fallback
+             */
+
+            return current;
+
+        }catch(e){
+
+            return null;
+
+        }
+
+    }
+
+
+    /* ========================================================
+       ACTIVITY CHECK
+       --------------------------------------------------------
+       IMPORTANT:
+       We intentionally use the fields that the existing
+       NP-OS snapshot/streak system already understands.
+       ======================================================== */
+
+    function hasStudyActivity(record){
+
+        if(!record)
+            return false;
+
+
+        /*
+         * Existing streak-compatible fields
+         */
+
+        if(
+            num(
+                record.totalStudySeconds
+            ) > 0
+        ){
+
+            return true;
+
+        }
+
+
+        if(
+            num(
+                record.completedCount
+            ) > 0
+        ){
+
+            return true;
+
+        }
+
+
+        /*
+         * Extra compatibility with newer NEET OS data
+         */
+
+        if(
+            num(
+                record.totalQuestions
+            ) > 0
+        ){
+
+            return true;
+
+        }
+
+
+        if(
+            num(
+                record.testStudySeconds
+            ) > 0
+        ){
+
+            return true;
+
+        }
+
+
+        if(
+            Array.isArray(
+                record.unifiedStudySessions
+            ) &&
+            record.unifiedStudySessions.length
+        ){
+
+            return true;
+
+        }
+
+
+        if(
+            Array.isArray(
+                record.addonSessions
+            ) &&
+            record.addonSessions.length
+        ){
+
+            return true;
+
+        }
+
+
+        if(
+            Array.isArray(
+                record.questionPracticeSessions
+            ) &&
+            record.questionPracticeSessions.length
+        ){
+
+            return true;
+
+        }
+
+
+        if(
+            Array.isArray(
+                record.testRecords
+            ) &&
+            record.testRecords.length
+        ){
+
+            return true;
+
+        }
+
+
+        return false;
+
+    }
+
+
+    /* ========================================================
+       RECORD DATE
+       ======================================================== */
+
+    function getRecordDate(record){
+
+        if(
+            !record ||
+            !record.date
+        ){
+
+            return null;
+
+        }
+
+
+        /*
+         * Existing NEET OS history normally stores:
+         * YYYY-MM-DD
+         */
+
+        const value =
+            String(
+                record.date
+            );
+
+
+        if(
+            /^\d{4}-\d{2}-\d{2}$/.test(
+                value
+            )
+        ){
+
+            return value;
+
+        }
+
+
+        return null;
+
+    }
+
+
+    /* ========================================================
+       BUILD ACTIVITY MAP
+       ======================================================== */
+
+    function buildActivityMap(){
+
+        const map = {};
+
+
+        const history =
+            getAllHistory();
+
+
+        history.forEach(
+            record => {
+
+                const key =
+                    getRecordDate(
+                        record
+                    );
+
+
+                if(
+                    key &&
+                    hasStudyActivity(
+                        record
+                    )
+                ){
+
+                    map[key] = true;
+
+                }
+
+            }
+        );
+
+
+        /*
+         * CURRENT DAY
+         */
+
+        const current =
+            getCurrentSnapshot();
+
+
+        if(
+            current &&
+            hasStudyActivity(
+                current
+            )
+        ){
+
+            const currentKey =
+                getStudyDay();
+
+            map[currentKey] = true;
+
+        }
+
+
+        return map;
+
+    }
+
+
+    /* ========================================================
+       CALCULATE STREAK
+       ======================================================== */
+
+    function calculateHomeStreak(){
+
+        const activity =
+            buildActivityMap();
+
+
+        let key =
+            getStudyDay();
+
+
+        let streak = 0;
+
+
+        /*
+         * IMPORTANT:
+         *
+         * If today has no activity yet,
+         * start from yesterday.
+         *
+         * This prevents the streak from becoming
+         * 0 just because the new study day has started.
+         */
+
+        if(
+            !activity[key]
+        ){
+
+            key =
+                previousDay(
+                    key
+                );
+
+        }
+
+
+        /*
+         * Maximum 365 days
+         */
+
+        for(
+            let i = 0;
+            i < 365;
+            i++
+        ){
+
+            if(
+                !activity[key]
+            ){
+
+                break;
+
+            }
+
+
+            streak++;
+
+
+            key =
+                previousDay(
+                    key
+                );
+
+        }
+
+
+        return streak;
+
+    }
+
+
+    /* ========================================================
+       HOME SCREEN TARGET
+       ======================================================== */
+
+    function updateHomeStreak(){
+
+        const streak =
+            calculateHomeStreak();
+
+
+        /*
+         * Known / possible IDs
+         */
+
+        const selectors = [
+
+            "#homeCurrentStreak",
+
+            "#currentStreak",
+
+            "#streak",
+
+            "#homeStreak",
+
+            "[data-current-streak]",
+
+            "[data-streak]"
+
+        ];
+
+
+        const targets = [];
+
+
+        selectors.forEach(
+            selector => {
+
+                document
+                    .querySelectorAll(
+                        selector
+                    )
+                    .forEach(
+                        element => {
+
+                            if(
+                                !targets.includes(
+                                    element
+                                )
+                            ){
+
+                                targets.push(
+                                    element
+                                );
+
+                            }
+
+                        }
+                    );
+
+            }
+        );
+
+
+        /*
+         * Also find the HOME card itself
+         * by its "Current Streak" label.
+         */
+
+        const home =
+            document.getElementById(
+                "homePage"
+            );
+
+
+        if(home){
+
+            home
+                .querySelectorAll(
+                    ".card"
+                )
+                .forEach(
+                    card => {
+
+                        const text =
+                            String(
+                                card.textContent ||
+                                ""
+                            );
+
+
+                        if(
+                            /current\s+streak/i.test(
+                                text
+                            )
+                        ){
+
+                            /*
+                             * Find number/value inside card
+                             */
+
+                            const valueNodes =
+                                card.querySelectorAll(
+                                    "h1,h2,h3,strong,b,span"
+                                );
+
+
+                            valueNodes.forEach(
+                                node => {
+
+                                    const nodeText =
+                                        String(
+                                            node.textContent ||
+                                            ""
+                                        ).trim();
+
+
+                                    if(
+                                        /^\d+\s*days?$/i.test(
+                                            nodeText
+                                        ) ||
+                                        /^\d+$/.test(
+                                            nodeText
+                                        )
+                                    ){
+
+                                        if(
+                                            !targets.includes(
+                                                node
+                                            )
+                                        ){
+
+                                            targets.push(
+                                                node
+                                            );
+
+                                        }
+
+                                    }
+
+                                }
+                            );
+
+                        }
+
+                    }
+                );
+
+        }
+
+
+        /*
+         * FINAL UPDATE
+         */
+
+        targets.forEach(
+            element => {
+
+                const oldText =
+                    String(
+                        element.textContent ||
+                        ""
+                    );
+
+
+                /*
+                 * Preserve "days" if it was already there.
+                 */
+
+                if(
+                    /days?/i.test(
+                        oldText
+                    )
+                ){
+
+                    element.textContent =
+                        streak +
+                        (
+                            streak === 1
+                                ? " day"
+                                : " days"
+                        );
+
+                }else{
+
+                    element.textContent =
+                        String(
+                            streak
+                        );
+
+                }
+
+            }
+        );
+
+
+        /*
+         * Expose value for other NP-OS UI
+         */
+
+        window.NPOS_HOME_STREAK =
+            streak;
+
+
+        return streak;
+
+    }
+
+
+    /* ========================================================
+       REFRESH
+       ======================================================== */
+
+    function refresh(){
+
+        try{
+
+            updateHomeStreak();
+
+        }catch(error){
+
+            console.warn(
+                "NP-OS Home Streak Fix v2:",
+                error
+            );
+
+        }
+
+    }
+
+
+    /* ========================================================
+       BOOT
+       ======================================================== */
+
+    function boot(){
+
+        refresh();
+
+
+        /*
+         * Give existing NP-OS renderer time
+         * to finish rendering Home page.
+         */
+
+        setTimeout(
+            refresh,
+            500
+        );
+
+
+        setTimeout(
+            refresh,
+            1500
+        );
+
+
+        setTimeout(
+            refresh,
+            3000
+        );
+
+    }
+
+
+    if(
+        document.readyState ===
+        "loading"
+    ){
+
+        document.addEventListener(
+            "DOMContentLoaded",
+            boot,
+            {
+                once:true
+            }
+        );
+
+    }else{
+
+        boot();
+
+    }
+
+
+    /* ========================================================
+       LIVE REFRESH
+       ======================================================== */
+
+    setInterval(
+        refresh,
+        3000
+    );
+
+
+    document.addEventListener(
+        "visibilitychange",
+        () => {
+
+            if(
+                !document.hidden
+            ){
+
+                refresh();
+
+            }
+
+        }
+    );
+
+
+    window.addEventListener(
+        "focus",
+        refresh
+    );
+
+
+    console.log(
+        "✅ NP-OS HOME STREAK DIRECT FIX v2 loaded."
+    );
+
+
+})();
